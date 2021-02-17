@@ -202,10 +202,16 @@ pip_library(
   version = "0.2.5",
   deps = [
     ":psycopg2-binary",
+    ":tqdm",
   ]
 )
 
 pip_library(
   name = "psycopg2-binary",
   version = "2.8.6",
+)
+
+pip_library(
+  name = "tqdm",
+  version = "4.56.2",
 )
