@@ -200,4 +200,12 @@ pip_library(
 pip_library(
   name = "splitgraph",
   version = "0.2.5",
+  deps = [
+    ":psycopg2-binary",
+  ]
+)
+
+pip_library(
+  name = "psycopg2-binary",
+  version = "2.8.6",
 )
