@@ -1,3 +1,4 @@
+package(default_visibility = ["PUBLIC"])
 python_library(
     name = "lib",
     srcs = glob(["*.py"]),
