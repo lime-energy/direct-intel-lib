@@ -203,6 +203,10 @@ pip_library(
   deps = [
     ":psycopg2-binary",
     ":tqdm",
+    ":asciitree",
+    ":attrs",
+    ":packaging",
+    ":splitgraph-pipelinewise-target-postgres",
   ]
 )
 
