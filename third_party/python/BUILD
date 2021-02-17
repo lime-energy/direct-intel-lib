@@ -235,7 +235,10 @@ pip_library(
   name = "splitgraph-pipelinewise-target-postgres",
   version = "2.1.0",
 )
-
+pip_library(
+  name = "sqlalchemy",
+  version = "1.3.22",
+)
 
 # certifi==2020.12.5
 # chardet==4.0.0
