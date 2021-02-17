@@ -215,3 +215,45 @@ pip_library(
   name = "tqdm",
   version = "4.56.2",
 )
+pip_library(
+  name = "asciitree",
+  version = "0.3.3",
+)
+pip_library(
+  name = "attrs",
+  version = "20.3.0",
+)
+pip_library(
+  name = "packaging",
+  version = "20.9",
+)
+pip_library(
+  name = "splitgraph-pipelinewise-target-postgres",
+  version = "2.1.0",
+)
+
+
+# certifi==2020.12.5
+# chardet==4.0.0
+# click==7.1.2
+# click-log==0.3.2
+# docker==4.4.2
+# idna==2.10
+# inflection==0.5.1
+# joblib==1.0.1
+# jsonschema==3.2.0
+# minio==7.0.2
+
+# parsimonious==0.8.1
+# pglast==1.14
+# psycopg2-binary==2.8.6
+# pyparsing==2.4.7
+# pyrsistent==0.17.3
+# PyYAML==5.4.1
+# requests==2.25.1
+# six==1.15.0
+# sodapy==2.1.0
+
+# tabulate==0.8.7
+# urllib3==1.26.3
+# websocket-client==0.57.0
