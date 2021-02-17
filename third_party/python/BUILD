@@ -207,6 +207,7 @@ pip_library(
     ":attrs",
     ":packaging",
     ":splitgraph-pipelinewise-target-postgres",
+    ":sqlalchemy",
   ]
 )
 
