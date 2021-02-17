@@ -48,6 +48,7 @@ pip_library(
     ":pytzdata",
     ":docker",
     ":websocket-client",
+    ":dask",
   ]
 )
 
@@ -154,6 +155,11 @@ pip_library(
 pip_library(
   name = "websocket-client",
   version = "0.57.0",
+)
+
+pip_library(
+  name = "dask",
+  version = "2021.2.0",
 )
 
 
