@@ -9,7 +9,6 @@ python_binary(
     deps = [         
         "//src/python/prefect/splitgraph:lib",
         "//third_party/python:standard_deps",
-        "//third_party/python:mssql_deps",
         ],
 )
 
