@@ -49,6 +49,7 @@ pip_library(
     ":docker",
     ":websocket-client",
     ":dask",
+    ":pyodbc",
   ]
 )
 
