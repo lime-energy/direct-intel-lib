@@ -24,8 +24,10 @@ k8s_config(
 sh_cmd(
     name = "start",
     cmd = [
-        "plz run //minikube:minikube -- start",
-        "plz run //minikube:minikube -- addons enable ingress",
-        "plz run //minikube:k8s_push",
+        "plz run //src/scripts/minikube:minikube -- start",
+        "plz run //src/scripts/minikube:minikube -- addons enable ingress",
+        "plz run //src/scripts/minikube:k8s_push",
     ],
 )
+
+#kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v0.44.0/deploy/static/provider/cloud/deploy.yaml
