@@ -54,6 +54,16 @@ pip_library(
     ":pyodbc",
     ":boto3",
     ":botocore",
+    ":distributed",
+    ":HeapDict",
+    ":jmespath",
+    ":msgpack",
+    ":psutil",
+    ":s3transfer",
+    ":sortedcontainers",
+    ":tabulate",
+    ":tblib",
+    ":zict",
   ]
 )
 
