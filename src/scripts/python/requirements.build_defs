@@ -1,0 +1,7 @@
+def generate_requirements(name:str, query:str='', deps:list=[]) -> str:
+    return genrule(
+        name = name,
+        outs = ["requirements.txt"],
+        deps = deps,
+        cmd = f"plz query graph -i py {query} | jq --raw-output '.packages.\"third_party/python\".targets[] | select(.labels != null) | .labels[1] | sub(\"pip:\"; \"\") | .' > $OUT",
+    )
