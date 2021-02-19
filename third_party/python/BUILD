@@ -53,6 +53,7 @@ pip_library(
     ":dask",
     ":pyodbc",
     ":boto3",
+    ":botocore",
   ]
 )
 
@@ -175,6 +176,10 @@ pip_library(
 pip_library(
   name = "boto3",
   version = "1.17.11",
+)
+pip_library(
+  name = "botocore",
+  version = "1.20.11",
 )
 
 #     ██╗ ██╗    ██████╗ ██████╗ ███████╗███████╗███████╗ ██████╗████████╗
