@@ -22,6 +22,6 @@ def build_venv(name:str, deps:list=[]) -> str:
             "\"\\\\${PIP}\" install -r \"\\\\${REQUIREMENTS_FILE}\"", 
         ],
         deps = [
-            generate_requirements(name = "venv_requirements") + deps,
+            [generate_requirements(name = "venv_requirements")] + deps,
         ],
     )
