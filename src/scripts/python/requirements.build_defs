@@ -8,6 +8,7 @@ def generate_requirements(name:str, query:str='', deps:list=[]) -> str:
 
 
 def build_venv(name:str, deps:list=[]) -> str:
+    venv_requirements = generate_requirements(name = "venv_requirements")
     return sh_cmd(
         name = name,
         cmd = [
@@ -21,7 +22,5 @@ def build_venv(name:str, deps:list=[]) -> str:
             "\"\\\\${PIP}\" install pip --upgrade",
             "\"\\\\${PIP}\" install -r \"\\\\${REQUIREMENTS_FILE}\"", 
         ],
-        deps = [
-            [generate_requirements(name = "venv_requirements")] + deps,
-        ],
+        deps = [venv_requirements] + deps,
     )
