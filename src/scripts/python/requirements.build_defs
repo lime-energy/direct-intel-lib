@@ -1,0 +1,26 @@
+def generate_requirements(name:str, query:str='', deps:list=[]) -> str:
+    return genrule(
+        name = name,
+        outs = ["requirements.txt"],
+        deps = deps,
+        cmd = f"plz query graph -i py {query} | jq --raw-output '.packages.\"third_party/python\".targets[] | select(.labels != null) | .labels[1] | sub(\"pip:\"; \"\") | .' > $OUT",
+    )
+
+
+def build_venv(name:str, deps:list=[]) -> str:
+    venv_requirements = generate_requirements(name = "venv_requirements")
+    return sh_cmd(
+        name = name,
+        cmd = [
+            "PYTHON_BIN=python3",
+            "VIRTUALENV=.venv",
+            "rm -rf \\\\${VIRTUALENV}",
+            "PIP=\"\\\\${VIRTUALENV}/bin/pip\"",
+            "REQUIREMENTS_FILE=$(out_location :venv_requirements)",
+            "echo \\\\$REQUIREMENTS_FILE",
+            "\"\\\\${PYTHON_BIN}\" -m venv \"\\\\${VIRTUALENV}\"",
+            "\"\\\\${PIP}\" install pip --upgrade",
+            "\"\\\\${PIP}\" install -r \"\\\\${REQUIREMENTS_FILE}\"", 
+        ],
+        deps = [venv_requirements] + deps,
+    )
