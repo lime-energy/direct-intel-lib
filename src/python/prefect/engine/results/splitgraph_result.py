@@ -193,4 +193,3 @@ class SplitgraphResult(Result):
 
     def get_upstream(self, repository: Repository):
         return Repository.from_template(repository, engine=get_engine('bedrock', autocommit=True))
-
