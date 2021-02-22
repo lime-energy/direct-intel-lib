@@ -52,6 +52,7 @@ pip_library(
     ":websocket-client",
     ":dask",
     ":pyodbc",
+    ":boto3",
   ]
 )
 
