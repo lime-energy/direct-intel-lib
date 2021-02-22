@@ -181,6 +181,47 @@ pip_library(
   name = "botocore",
   version = "1.20.11",
 )
+pip_library(
+  name ="distributed",
+  version = "2021.2.0",
+)
+pip_library(
+  name ="HeapDict",
+  version = "1.0.1",
+)
+pip_library(
+  name ="jmespath",
+  version = "0.10.0",
+)
+pip_library(
+  name ="msgpack",
+  version = "1.0.2",
+)
+pip_library(
+  name ="psutil",
+  version = "5.8.0",
+)
+pip_library(
+  name ="s3transfer",
+  version = "0.3.4",
+)
+pip_library(
+  name ="sortedcontainers",
+  version = "2.3.0",
+)
+pip_library(
+  name ="tabulate",
+  version = "0.8.8",
+)
+pip_library(
+  name ="tblib",
+  version = "1.7.0",
+)
+pip_library(
+  name ="zict",
+  version = "2.0.0",
+)
+
 
 #     ██╗ ██╗    ██████╗ ██████╗ ███████╗███████╗███████╗ ██████╗████████╗
 #    ██╔╝██╔╝    ██╔══██╗██╔══██╗██╔════╝██╔════╝██╔════╝██╔════╝╚══██╔══╝
