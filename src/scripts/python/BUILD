@@ -10,23 +10,22 @@ generate_requirements(
     name = "venv_requirements"
 )
 
-
-
 sh_cmd(
     name = "build_venv",
     cmd = [
-        "PYTHON_BIN=python3",
+        "BASE_PYTHON=python3",
         "VIRTUALENV=.venv",
         "rm -rf \\\\${VIRTUALENV}",
         "PIP=\"\\\\${VIRTUALENV}/bin/pip\"",
-        "REQUIREMENTS_FILE=$(out_location :venv_requirements)",
+        "VENV_PYTHON=\"\\\\${VIRTUALENV}/bin/python\"",
+        "REQUIREMENTS_FILE=$(out_location :venv)",
         "echo \\\\$REQUIREMENTS_FILE",
-        "\"\\\\${PYTHON_BIN}\" -m venv \"\\\\${VIRTUALENV}\"",
+        "\"\\\\${BASE_PYTHON}\" -m venv \"\\\\${VIRTUALENV}\"",
         "\"\\\\${PIP}\" install pip --upgrade",
-        "\"\\\\${PIP}\" install -r \"\\\\${REQUIREMENTS_FILE}\"", 
+        "\"\\\\${PIP}\" install -r \"\\\\${REQUIREMENTS_FILE}\"",
+        "cp -r plz-out/gen/*/src \\\\$(\\\\${VENV_PYTHON} -c 'import site; print(site.getsitepackages()[0])')"
     ],
     deps = [
         ":venv_requirements",
     ],
 )
-
