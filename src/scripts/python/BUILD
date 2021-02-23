@@ -18,7 +18,7 @@ sh_cmd(
         "rm -rf \\\\${VIRTUALENV}",
         "PIP=\"\\\\${VIRTUALENV}/bin/pip\"",
         "VENV_PYTHON=\"\\\\${VIRTUALENV}/bin/python\"",
-        "REQUIREMENTS_FILE=$(out_location :venv)",
+        "REQUIREMENTS_FILE=$(out_location :venv_requirements)",
         "echo \\\\$REQUIREMENTS_FILE",
         "\"\\\\${BASE_PYTHON}\" -m venv \"\\\\${VIRTUALENV}\"",
         "\"\\\\${PIP}\" install pip --upgrade",
