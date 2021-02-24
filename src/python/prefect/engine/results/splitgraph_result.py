@@ -56,7 +56,7 @@ class SplitgraphResult(Result):
         env: Dict[str, Any] = None,
         auto_push: bool = True,
         layer_query: bool = False,
-        remote_name: str = 'bedrock'
+        remote_name: str = 'bedrock',
         schema: Schema = None,
         **kwargs: Any
     ) -> None:
