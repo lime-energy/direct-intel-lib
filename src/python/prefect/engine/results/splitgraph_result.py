@@ -8,7 +8,7 @@ import uuid
 from prefect import task
 from prefect.engine.result import Result
 from prefect.utilities.collections import DotDict
-
+from pandas_schema import Schema
 from splitgraph.config.config import create_config_dict, patch_config
 from splitgraph.core.engine import repository_exists, get_engine
 from splitgraph.core.repository import Repository, clone, table_exists_at
@@ -16,6 +16,7 @@ from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.ingestion.pandas import df_to_table, sql_to_df
 from splitgraph.splitfile.execution import execute_commands
 
+from .errors import SchemaValidationError
 
 project_name = os.environ.get('PREFECT_PROJECT_NAME')
 
@@ -56,6 +57,7 @@ class SplitgraphResult(Result):
         auto_push: bool = True,
         layer_query: bool = False,
         remote_name: str = 'bedrock'
+        schema: Schema = None,
         **kwargs: Any
     ) -> None:
         self.env = env or dict()
@@ -64,6 +66,7 @@ class SplitgraphResult(Result):
         self.auto_push = auto_push
         self.layer_query = layer_query
         self.remote_name = remote_name
+        self.schema = schema
        
 
         super().__init__(**kwargs)
@@ -136,7 +139,14 @@ class SplitgraphResult(Result):
                 single_image=new.repo_info.tag,
             )
             data = sql_to_df(f"SELECT * FROM {new.repo_info.table}", repository=cloned_repo, use_lq=self.layer_query)
-            
+
+            if self.schema is not None:
+                errors = self.schema.validate(data)
+                if errors:
+                    raise SchemaValidationError(errors)
+
+
+
             new.value = new.serializer.deserialize(stream.getvalue())
         except Exception as exc:
             self.logger.exception(
@@ -161,6 +171,12 @@ class SplitgraphResult(Result):
         Returns:
             - Result: returns a new `Result` with both `value`, `comment`, `table`, and `tag` attributes
         """
+
+        if self.schema is not None:
+            errors = self.schema.validate(value_)
+            if errors:
+                raise SchemaValidationError(errors)
+
 
         new = self.format(**kwargs)
         new.value = value_

@@ -255,12 +255,18 @@ pip_library(
   version = "1.2.2",
   deps = [
     ":numpy",
+    ":pandas-schema",
   ]
 )
 
 pip_library(
   name = "numpy",
   version = "1.20.1",
+)
+
+pip_library(
+  name = "pandas-schema",
+  version = "0.3.5",
 )
 
 
