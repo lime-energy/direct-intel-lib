@@ -1,19 +1,27 @@
+import os
 import pandas as pd
 import pendulum
-
+import re
 from contextlib import contextmanager
 from typing import Any, Dict
-
+import uuid
+from prefect import task
 from prefect.engine.result import Result
+from prefect.utilities.collections import DotDict
 
 from splitgraph.config.config import create_config_dict, patch_config
 from splitgraph.core.engine import repository_exists, get_engine
-from splitgraph.core.repository import Repository
+from splitgraph.core.repository import Repository, clone, table_exists_at
 from splitgraph.engine.postgres.engine import PostgresEngine
-from splitgraph.ingestion.pandas import df_to_table
+from splitgraph.ingestion.pandas import df_to_table, sql_to_df
+from splitgraph.splitfile.execution import execute_commands
 
+
+project_name = os.environ.get('PREFECT_PROJECT_NAME')
 
 class SplitgraphResult(Result):
+    repo_pattern = re.compile('(?P<namespace>.*)/(?P<repo>.*):(?P<tag>.*)/(?P<table>.*)')
+
     """
     Result that is written to and retrieved from Splitgraph.
     Splitgraph uses the following env vars
@@ -31,13 +39,10 @@ class SplitgraphResult(Result):
 
     Args:
         - namespace (str, optional): Splitgraph namespace
-        - repo_name (str, optional): Splitgraph repository name
-        - table (str, optional): Possibly templated table to be used for saving the result
-            to the destination. Follows the logic of `.format(**kwargs)`.
+        - location (str, optional): Fully qualified splitgraph table, i.e. namespace/repository:tag/table.
+            Follows the logic of `.format(**kwargs)`.
         - comment (str, optional): Possibly templated table to be used for commenting the
             Splitgraph commit.
-        - tag (str, optional): Possibly templated tag be used for tagging the Splitgraph
-            commit.
         - env (Dict[str, Any], optional): Env vars to be patched to Splitgraph default
             configuration.
         - **kwargs (Any, optional): any additional `Result` initialization options
@@ -45,64 +50,103 @@ class SplitgraphResult(Result):
 
     def __init__(
         self,
-        namespace: str = None,
-        repo_name: str = None,
         auto_init_repo: str = False,
-        table: str = None,
         comment: str = None,
-        tag: str = None,
         env: Dict[str, Any] = None,
         auto_push: bool = True,
+        layer_query: bool = False,
+        remote_name: str = 'bedrock'
         **kwargs: Any
     ) -> None:
         self.env = env or dict()
-        self.namespace = namespace
-        self.repo_name = repo_name
         self.auto_init_repo = auto_init_repo
-        self.table = table
         self.comment = comment
-        self.tag = tag
         self.auto_push = auto_push
+        self.layer_query = layer_query
+        self.remote_name = remote_name
+       
 
         super().__init__(**kwargs)
+    
+    @property
+    def engine(self) -> PostgresEngine:
+        if getattr(self, "_engine", None) is None:
+            cfg = patch_config(create_config_dict(), self.env or dict())
+            engine = PostgresEngine(name='SplitgraphResult', conn_params=cfg)
+            engine.initialize()
 
-    def format(self, **kwargs: Any) -> "SplitgraphResult":
-        """
-        Takes a set of string format key-value pairs and renders the result.[table, comment, tag] to
-        final strings
+            self._engine = engine
+        return self._engine
+    @property
+    def repo_info(self) -> DotDict:
+        return DotDict(repo_pattern.search(location))
+    @property
+    def default_location(self) -> str:
+        location = f"{project_name}/{flow_name}:{tag or uuid.uuid4()}/prefect_result"
+        return location
 
-        Args:
-            - **kwargs (Any): string format arguments for result.[table, comment, tag]
+    @task
+    def build_splitfile(self, splitfile_commands: str,  **kwargs: Any):
+        formatting_kwargs = {
+            **kwargs,
+            **prefect.context.get("parameters", {}).copy(),
+            **prefect.context,            
+        }
+        new = self.format(**formatting_kwargs)
+        repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo, engine=self.engine)
+        execute_commands(splitfile_commands, formatting_kwargs, repo)
+        if self.auto_push:
+            repo.push(
+                self.get_upstream(repo),
+                handler="S3",
+                overwrite_objects=True,
+                overwrite_tags=True,
+                reupload_objects=True,
+            )
 
-        Returns:
-            - Result: a new result instance with the appropriately formatted table, comment, and tag
-        """
+    @task
+    def fetch(self, **kwargs: Any):
+        formatting_kwargs = {
+            **kwargs,
+            **prefect.context.get("parameters", {}).copy(),
+            **prefect.context,            
+        }
+        new = self.format(**formatting_kwargs)
+        result = new.read(new.location)
+        return result.value
+        
+    def to_repo_location(self) -> str:
+        return "{namespace}/{repo}:{tag}".format(**self.repo_info)
 
-        new = super().format(**kwargs)
+    def read(self, location: str) -> Result:
+        new = self.copy()
+        new.location = location
+        try:            
+        
+            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo, engine=self.engine)
 
-        now = pendulum.now('utc')
-        if isinstance(new.table, str):
-            assert new.table is not None
-            new.table = new.table.format(**kwargs)
-        else:
-            table = 'prefect-result' + now.format('Y-M-D-h-m-s')
-            new.table = table
+            assert self.engine.connected
 
-        if isinstance(new.comment, str):
-            assert new.comment is not None
-            new.comment = new.comment.format(**kwargs)
-        else:
-            new.comment = '(Auto) created at: ' + now.isoformat()
-
-        if isinstance(new.tag, str):
-            assert new.tag is not None
-            new.tag = new.tag.format(**kwargs)
-        else:
-            new.tag = now.format('YYYYMMDDHHmmss')
+            cloned_repo=clone(
+                self.get_upstream(repo),
+                local_repository=repo,
+                download_all=True,
+                overwrite_objects=True,
+                overwrite_tags=True,
+                single_image=new.repo_info.tag,
+            )
+            data = sql_to_df(f"SELECT * FROM {new.repo_info.table}", repository=cloned_repo, use_lq=self.layer_query)
+            
+            new.value = new.serializer.deserialize(stream.getvalue())
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error while reading from result handler: {}".format(
+                    repr(exc)
+                )
+            )
+            raise exc
+        
         return new
-
-    def read(self) -> Result:
-        raise NotImplementedError
 
     def write(self, value_: Any, **kwargs: Any) -> Result:
         """
@@ -118,13 +162,15 @@ class SplitgraphResult(Result):
             - Result: returns a new `Result` with both `value`, `comment`, `table`, and `tag` attributes
         """
 
-        cfg = patch_config(create_config_dict(), self.env or dict())
-        engine = PostgresEngine(name='SplitgraphResult', conn_params=cfg)
-        engine.initialize()
-        repo = Repository(namespace=self.namespace, repository=self.repo_name, engine=engine)
+        new = self.format(**kwargs)
+        new.value = value_
+
+        repo_info = DotDict(repo_pattern.search(new.location))
+    
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo, engine=self.engine)
 
         assert isinstance(value_, pd.DataFrame)
-        assert engine.connected
+        assert self.engine.connected
 
         if not repository_exists(repo) and self.auto_init_repo:
             self.logger.info("Creating repo {}/{}...".format(repo.namespace, repo.repository))
@@ -132,22 +178,19 @@ class SplitgraphResult(Result):
 
         # TODO: Retrieve the repo from bedrock first
 
-        new = self.format(**kwargs)
-        new.value = value_
+        self.logger.info("Starting to upload result to {}...".format(new.location))
 
-        self.logger.info("Starting to upload result to {}...".format(new.table))
-
-        with self.atomic(engine):
+        with self.atomic(self.engine):
             self.logger.info("checkout")
             img = repo.head
             img.checkout(force=True)
 
             self.logger.info("df to table")
-            df_to_table(new.value, repository=repo, table=new.table, if_exists='replace')
+            df_to_table(new.value, repository=repo, table=repo_info.table, if_exists='replace')
 
             self.logger.info("commit")
             new_img = repo.commit(comment=new.comment, chunk_size=10000)
-            new_img.tag(new.tag)
+            new_img.tag(repo_info.tag)
 
 
         # if (repo.diff(new.table, img, new_img)):
@@ -161,8 +204,7 @@ class SplitgraphResult(Result):
                 reupload_objects=True,
             )
 
-        engine.close()
-        self.logger.info("Finished uploading result to {}...".format(new.table))
+        self.logger.info("Finished uploading result to {}...".format(new.location))
 
         return new
 
@@ -181,7 +223,20 @@ class SplitgraphResult(Result):
             - bool: whether or not the target result exists
         """
 
-        raise NotImplementedError
+        try:
+            repo_info = DotDict(repo_pattern.search(location))
+            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo, engine=self.engine)
+
+            assert self.engine.connected
+ 
+            table_exists_at(self.get_upstream(repo), repo_info.table)
+            return self.client.get_object(Bucket=self.bucket, Key=location.format(**kwargs))
+
+        except Exception as exc:
+            self.logger.exception(
+                "Unexpected error while reading from Splitgraph: {}".format(repr(exc))
+            )
+            raise
 
     @contextmanager
     def atomic(self, engine):
@@ -192,4 +247,4 @@ class SplitgraphResult(Result):
             engine.commit()
 
     def get_upstream(self, repository: Repository):
-        return Repository.from_template(repository, engine=get_engine('bedrock', autocommit=True))
+        return Repository.from_template(repository, engine=get_engine(self.remote_name, autocommit=True))
