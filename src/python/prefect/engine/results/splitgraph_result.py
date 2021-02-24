@@ -1,11 +1,11 @@
 import os
 import pandas as pd
 import pendulum
-import re
+
 from contextlib import contextmanager
 from typing import Any, Dict
 import uuid
-from prefect import task
+from prefect import task, Task
 from prefect.engine.result import Result
 from prefect.utilities.collections import DotDict
 from pandas_schema import Schema
@@ -16,7 +16,9 @@ from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.ingestion.pandas import df_to_table, sql_to_df
 from splitgraph.splitfile.execution import execute_commands
 
-from .errors import SchemaValidationError
+from src.python.splitgraph import parse_repo
+from src.python.prefect.tasks.splitgraph import BuildSplitfileTask
+from src.python.splitgraph import SchemaValidationError
 
 project_name = os.environ.get('PREFECT_PROJECT_NAME')
 
@@ -82,42 +84,13 @@ class SplitgraphResult(Result):
         return self._engine
     @property
     def repo_info(self) -> DotDict:
-        return DotDict(self.repo_pattern.search(self.location).groupdict())
+        return DotDict(parse_repo(self.location))
     @property
     def default_location(self) -> str:
         location = f"{project_name}/{flow_name}:{tag or uuid.uuid4()}/prefect_result"
         return location
 
-    @task
-    def build_splitfile(self, splitfile_commands: str,  **kwargs: Any):
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get("parameters", {}).copy(),
-            **prefect.context,            
-        }
-        new = self.format(**formatting_kwargs)
-        repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo, engine=self.engine)
-        execute_commands(splitfile_commands, formatting_kwargs, repo)
-        if self.auto_push:
-            repo.push(
-                self.get_upstream(repo),
-                handler="S3",
-                overwrite_objects=True,
-                overwrite_tags=True,
-                reupload_objects=True,
-            )
 
-    @task
-    def fetch(self, **kwargs: Any):
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get("parameters", {}).copy(),
-            **prefect.context,            
-        }
-        new = self.format(**formatting_kwargs)
-        result = new.read(new.location)
-        return result.value
-        
     def to_repo_location(self) -> str:
         return "{namespace}/{repo}:{tag}".format(**self.repo_info)
 
