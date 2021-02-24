@@ -290,6 +290,7 @@ pip_library(
     ":packaging",
     ":splitgraph-pipelinewise-target-postgres",
     ":sqlalchemy",
+    ":parsimonious",
   ]
 )
 
@@ -322,6 +323,11 @@ pip_library(
   name = "sqlalchemy",
   version = "1.3.22",
 )
+pip_library(
+  name = "parsimonious",
+  version = "0.8.1",
+)
+
 
 # certifi==2020.12.5
 # chardet==4.0.0
@@ -334,7 +340,7 @@ pip_library(
 # jsonschema==3.2.0
 # minio==7.0.2
 
-# parsimonious==0.8.1
+
 # pglast==1.14
 # psycopg2-binary==2.8.6
 # pyparsing==2.4.7
