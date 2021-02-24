@@ -82,7 +82,7 @@ class SplitgraphResult(Result):
         return self._engine
     @property
     def repo_info(self) -> DotDict:
-        return DotDict(self.repo_pattern.search(self.location))
+        return DotDict(self.repo_pattern.search(self.location).groupdict())
     @property
     def default_location(self) -> str:
         location = f"{project_name}/{flow_name}:{tag or uuid.uuid4()}/prefect_result"
