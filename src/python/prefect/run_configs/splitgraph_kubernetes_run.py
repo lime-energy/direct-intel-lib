@@ -50,7 +50,7 @@ class SplitgraphKubernetesRun(KubernetesRun):
 
     def __init__(
         self,
-        *,
+        *args,
         **kwargs
     ) -> None:
         super().__init__(job_template=DEFAULT_JOB_TEMPLATE, **kwargs)

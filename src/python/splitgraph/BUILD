@@ -1,7 +1,7 @@
 package(default_visibility = ["PUBLIC"])
 python_library(
     name = "lib",
-    srcs = glob(["*.py"]),
+    srcs = glob(["**.py"]),
     deps = [
         "//third_party/python:standard_deps",
         ],

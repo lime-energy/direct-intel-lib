@@ -1,0 +1,1 @@
+import src.python.prefect.tasks.secrets.aws_secret
