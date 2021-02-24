@@ -28,18 +28,18 @@ class AWSSecret(SecretBase):
 
     """
 
-    def __init__(self, name=None, key=None, template=None, default:Optional[Any]=None, **kwargs):
+    def __init__(self, secret_name=None, key=None, template=None, default:Optional[Any]=None, **kwargs):
         if key and template:
             raise ValueError("Can't use 'key' and 'template' at the same time.")
 
-        self.secret_name = name
+        self.secret_name = secret_name
         self.key = key
         self.template = template
         self.default = default
-        super().__init__(name=name, **kwargs)
+        super().__init__(name=secret_name, **kwargs)
 
-    @defaults_from_attrs('secret_name', 'key', 'template')
-    def run(self, secret_name: str = None, key: str = None, template: str = None):
+    @defaults_from_attrs('secret_name', 'key', 'template', 'default')
+    def run(self, secret_name: str = None, key: str = None, template: str = None, default:Optional[Any]=None):
         """
         The run method for Secret Tasks.  This method actually retrieves and returns the
         underlying secret value using the `Secret.get()` method.  Note that this method first
