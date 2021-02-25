@@ -1,36 +1,12 @@
+import os
 import yaml
-from typing import Union, Iterable
 
-from prefect.utilities.filesystems import parse_path
-from prefect.run_configs.base import RunConfig
+from prefect.utilities.filesystems import read_bytes_from_path
 from prefect.run_configs import KubernetesRun
 
-DEFAULT_JOB_TEMPLATE = '''
-apiVersion: batch/v1
-kind: Job
-spec:
-  template:
-    spec:
-      restartPolicy: Never
-      containers:
-        - name: flow
-          command: ["/bin/sh", "-c"]
-          env:
-          - name: SG_ENGINE_HOST
-            value: 127.0.0.1
-        - name: sgr
-          image: splitgraph/engine
-          imagePullPolicy: Always
-          lifecycle:
-            type: Sidecar
-          ports:
-          - name: postgres
-            containerPort: 5432
-            protocol: TCP
-          env:
-          - name: POSTGRES_PASSWORD
-            value: supersecure
-'''
+
+DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
+
 
 class SplitgraphKubernetesRun(KubernetesRun):
     """Configure a flow-run to run as a Kubernetes Job.
@@ -53,4 +29,5 @@ class SplitgraphKubernetesRun(KubernetesRun):
         *args,
         **kwargs
     ) -> None:
-        super().__init__(job_template=DEFAULT_JOB_TEMPLATE, **kwargs)
+        job_template = yaml.safe_load(read_bytes_from_path(DEFAULT_JOB_TEMPLATE_PATH))
+        super().__init__(job_template=job_template, **kwargs)

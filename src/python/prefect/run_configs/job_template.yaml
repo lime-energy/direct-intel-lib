@@ -1,0 +1,54 @@
+apiVersion: batch/v1
+kind: Job
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      volumes:
+      - name: shared
+        emptyDir: {}
+      - name: splitgraph
+        secret:
+          secretName: splitgraph
+      containers:
+        - name: flow
+          command:
+          - /bin/sh
+          - -c
+          - trap "rm /tmp/pod/main-executing" EXIT; $0
+          env:
+          - name: SG_ENGINE_HOST
+            value: 127.0.0.1
+          - name: SG_CONFIG_FILE
+            value: /var/splitgraph/.sgconfig
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", 'touch /tmp/pod/main-executing']
+          volumeMounts:
+          - name: shared
+            mountPath: /tmp/pod
+          - mountPath: /var/splitgraph
+            name: splitgraph
+        - name: sgr
+          image: splitgraph/engine
+          imagePullPolicy: Always
+          lifecycle:
+            type: Sidecar
+          ports:
+          - name: postgres
+            containerPort: 5432
+            protocol: TCP
+          env:
+          - name: POSTGRES_PASSWORD
+            value: supersecure
+          livenessProbe:
+            exec:
+              command:
+              - cat
+              - /tmp/pod/main-executing
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          volumeMounts:
+          - name: shared
+            mountPath: /tmp/pod
