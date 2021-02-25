@@ -18,7 +18,7 @@ from splitgraph.splitfile.execution import execute_commands
 
 from src.python.splitgraph import parse_repo
 from src.python.prefect.tasks.splitgraph import BuildSplitfileTask
-from src.python.splitgraph import SchemaValidationError
+from src.python.splitgraph import SchemaValidationError, parse_repo
 
 project_name = os.environ.get('PREFECT_PROJECT_NAME')
 
