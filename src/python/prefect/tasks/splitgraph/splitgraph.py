@@ -4,9 +4,10 @@ from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.collections import DotDict
 from splitgraph.config.config import create_config_dict, patch_config
 from splitgraph.core.engine import get_engine
-from splitgraph.core.repository import Repository
+from splitgraph.core.repository import Repository, clone, table_exists_at
 from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.splitfile.execution import execute_commands
+from splitgraph.ingestion.pandas import df_to_table, sql_to_df
 from pandas_schema import Schema
 
 from src.python.splitgraph.repo_info import parse_repo
