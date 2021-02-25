@@ -7,8 +7,9 @@ from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.splitfile.execution import execute_commands
 from pandas_schema import Schema
 
+from src.python.splitgraph.repo_info import parse_repo
+from src.python.splitgraph.errors import SchemaValidationError
 
-from src.python.splitgraph import parse_repo, SchemaValidationError
 
 class SplitgraphFetch(Task):
     """

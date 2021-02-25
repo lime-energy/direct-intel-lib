@@ -6,7 +6,9 @@ from splitgraph.core.repository import Repository
 from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.splitfile.execution import execute_commands
 
-from src.python.splitgraph import parse_repo
+from src.python.splitgraph.repo_info import parse_repo
+from src.python.splitgraph.errors import SchemaValidationError
+
 
 class SplitfileTask(Task):
     """
