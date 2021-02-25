@@ -1,4 +1,4 @@
-def generate_requirements(name:str, query:str='', deps:list=[]) -> str:
+def generate_requirements(name:str, query:str='//...', deps:list=[]) -> str:
     return genrule(
         name = name,
         outs = ["requirements.txt"],
