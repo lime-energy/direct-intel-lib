@@ -8,6 +8,7 @@ python_binary(
     main = "noop.py",
     deps = [         
         "//src/python/prefect:lib",
+        "//src/python/splitgraph:lib",
         "//third_party/python:standard_deps",
         ],
 )
