@@ -4,5 +4,6 @@ python_library(
     srcs = glob(["**.py"]),
     deps = [
         "//third_party/python:standard_deps",
+        "//src/python/splitgraph:lib",
         ],
 )
