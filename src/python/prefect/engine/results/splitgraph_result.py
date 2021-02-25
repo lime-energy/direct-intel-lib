@@ -82,7 +82,7 @@ class SplitgraphResult(Result):
         return DotDict(parse_repo(self.location))
     @property
     def default_location(self) -> str:
-        location = "{flow_name}/{task_name}:{tag or uuid.uuid4()}/prefect_result"
+        location = "foobar"
         return location
 
 
