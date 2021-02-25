@@ -1,1 +1,1 @@
-import src.python.prefect.engine.results.splitgraph_result
+from .splitgraph_result import SplitgraphResult

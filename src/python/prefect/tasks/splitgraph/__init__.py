@@ -1,2 +1,2 @@
-import src.python.prefect.tasks.splitgraph.splitfile_task
-import src.python.prefect.tasks.splitgraph.splitgraph
+from .splitfile_task import SplitfileTask
+from .splitgraph import SplitgraphFetch

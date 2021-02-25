@@ -1,2 +1,2 @@
-import src.python.splitgraph.repo_info
-import src.python.splitgraph.errors
+from .repo_info import parse_repo
+from .errors import SchemaValidationError

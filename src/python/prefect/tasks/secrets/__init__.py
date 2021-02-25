@@ -1,1 +1,1 @@
-import src.python.prefect.tasks.secrets.aws_secret
+from .aws_secret import AWSSecret
