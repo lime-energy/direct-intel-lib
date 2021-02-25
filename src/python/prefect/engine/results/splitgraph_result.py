@@ -16,7 +16,6 @@ from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.ingestion.pandas import df_to_table, sql_to_df
 from splitgraph.splitfile.execution import execute_commands
 
-from src.python.splitgraph import parse_repo
 from src.python.prefect.tasks.splitgraph import BuildSplitfileTask
 from src.python.splitgraph import SchemaValidationError, parse_repo
 
