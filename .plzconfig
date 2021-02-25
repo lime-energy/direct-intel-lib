@@ -5,5 +5,17 @@
 ;
 ; Or you can uncomment the following to pin everyone to a particular version;
 ; when you change it all users will automatically get updated.
-; [please]
-; version = 15.16.0
+[please]
+version = 15.16.0
+[python]
+moduledir = third_party.python
+DisableVendorFlags = true
+
+[build]
+;PassEnv = 
+PassUnsafeEnv = SG_CONFIG_FILE, PREFECT__FLOWS__CHECKPOINTING
+
+
+[buildenv]
+sg-config-file = /Users/chuck/.splitgraph/.sgconfig
+prefect--flows--checkpointing = true

@@ -1,12 +1,8 @@
 import os
 import yaml
 
-from prefect.utilities.filesystems import read_bytes_from_path
+from pkg_resources import resource_stream
 from prefect.run_configs import KubernetesRun
-
-
-DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
-
 
 class SplitgraphKubernetesRun(KubernetesRun):
     """Configure a flow-run to run as a Kubernetes Job.
@@ -29,5 +25,11 @@ class SplitgraphKubernetesRun(KubernetesRun):
         *args,
         **kwargs
     ) -> None:
-        job_template = yaml.safe_load(read_bytes_from_path(DEFAULT_JOB_TEMPLATE_PATH))
-        super().__init__(job_template=job_template, **kwargs)
+        # if kwargs.get("job_template"):
+        #     raise ValueError("job_template not allowed")
+
+        super().__init__(job_template=self.default_template, **kwargs)
+
+    @property
+    def default_template(self) -> str:
+        return yaml.safe_load(resource_stream(__name__, "job_template.yaml"))

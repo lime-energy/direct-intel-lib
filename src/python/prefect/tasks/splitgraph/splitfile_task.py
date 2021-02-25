@@ -1,15 +1,15 @@
 from typing import Any, Dict
+
+import prefect
 from prefect import Task
-from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.collections import DotDict
+from prefect.utilities.tasks import defaults_from_attrs
+from src.python.splitgraph import SchemaValidationError, parse_repo
+
 from splitgraph.config.config import create_config_dict, patch_config
 from splitgraph.core.engine import get_engine
 from splitgraph.core.repository import Repository
-from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.splitfile.execution import execute_commands
-
-from src.python.splitgraph.repo_info import parse_repo
-from src.python.splitgraph.errors import SchemaValidationError
 
 
 class SplitfileTask(Task):
@@ -45,15 +45,7 @@ class SplitfileTask(Task):
         self.auto_push = auto_push
         
         super().__init__(**kwargs)
-    @property
-    def engine(self) -> PostgresEngine:
-        if getattr(self, "_engine", None) is None:
-            cfg = patch_config(create_config_dict(), self.env or dict())
-            engine = PostgresEngine(name='SplitgraphResult', conn_params=cfg)
-            engine.initialize()
 
-            self._engine = engine
-        return self._engine
     @defaults_from_attrs('uri', 'splitfile_commands')
     def run(self, uri: str = None, splitfile_commands: str = None, **kwargs: Any):
         """  
@@ -71,9 +63,11 @@ class SplitfileTask(Task):
         }
 
         repo_info = DotDict(parse_repo(uri.format(**formatting_kwargs)))
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository, engine=self.engine)
+
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
         remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
         execute_commands(splitfile_commands, formatting_kwargs, repo)
+        repo.head.tag(repo_info.tag)
         if self.auto_push:
             repo.push(
                 remote,

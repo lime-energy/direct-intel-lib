@@ -1,0 +1,132 @@
+def python_test(name:str, srcs:list, data:list|dict=[], resources:list=[], deps:list=[], worker:str='',
+                labels:list&features&tags=[], size:str=None, flags:str='', visibility:list=None,
+                sandbox:bool=None, timeout:int=0, flaky:bool|int=0,
+                test_outputs:list=None, zip_safe:bool=None, interpreter:str=None, site:bool=False,
+                test_runner:str=None):
+    """Generates a Python test target.
+    This works very similarly to python_binary; it is also a single .pex file
+    which is run to execute the tests. The tests are run via either unittest or pytest, depending
+    on which is set for the test runner, which can be configured either via the python_test_runner
+    package property or python.testrunner in the config.
+    Args:
+      name (str): Name of the rule.
+      srcs (list): Source files for this test.
+      data (list): Runtime data files for the test.
+      resources (list): Non-Python files to be included in the pex. Note that the distinction
+                        vs. srcs is important here; srcs are passed to unittest for it to run
+                        and it may or may not be happy if given non-Python files.
+      deps (list): Dependencies of this rule.
+      worker (str): Reference to worker script, A persistent worker process that is used to set up the test.
+      labels (list): Labels for this rule.
+      size (str): Test size (enormous, large, medium or small).
+      flags (str): Flags to apply to the test command.
+      visibility (list): Visibility specification.
+      sandbox (bool): Sandbox the test on Linux to restrict access to namespaces such as network.
+      timeout (int): Maximum time this test is allowed to run for, in seconds.
+      flaky (int | bool): True to mark this test as flaky, or an integer for a number of reruns.
+      test_outputs (list): Extra test output files to generate from this test.
+      zip_safe (bool): Allows overriding whether the output is marked zip safe or not.
+                       If set to explicitly True or False, the output will be marked
+                       appropriately; by default it will be safe unless any of the
+                       transitive dependencies are themselves marked as not zip-safe.
+      interpreter (str): The Python interpreter to use. Defaults to the config setting
+                         which is normally just 'python', but could be 'python3' or
+                        'pypy' or whatever.
+      site (bool): Allows the Python interpreter to import site; conversely if False, it will be
+                   started with the -S flag to avoid importing site.
+      test_runner (str): Specify which Python test runner to use for these tests. One of
+                         `unittest`, `pytest`, or a custom test runner entry point.
+    """
+    interpreter = interpreter or CONFIG.DEFAULT_PYTHON_INTERPRETER
+    test_runner = test_runner or CONFIG.PYTHON_TEST_RUNNER
+    cmd = '$TOOLS_PEX -t -s "%s" -m "%s" -r "%s" --zip_safe --add_test_runner_deps --interpreter_options="%s" --stamp="$STAMP"' % (
+        interpreter, CONFIG.PYTHON_MODULE_DIR, test_runner,
+        CONFIG.PYTHON_INTERPRETER_OPTIONS)
+    if site:
+        cmd += ' -S'
+
+    # If the config specifies a PYTHON_TEST_RUNNER_BOOTSTRAP target, then this ought to contain
+    # the test-runner library (e.g. pytest), and its transitive dependencies. In this case, we just
+    # add the specified target as a dependency.
+    #
+    # If no bootstrap target is provided, then plz will provide a pinned set of dependencies to
+    # support the specified test-runner framework.
+    bootstrap = CONFIG.PYTHON_TEST_RUNNER_BOOTSTRAP
+    if bootstrap:
+        deps += [bootstrap] if bootstrap not in deps else []
+        cmd = cmd.replace(' --add_test_runner_deps', '')
+
+    # Use the pex tool to compress the entry point & add all the bootstrap helpers etc.
+    pex_rule = build_rule(
+        name = name,
+        tag = 'pex',
+        srcs=srcs,
+        outs=[f'.{name}_main.pex.zip'],  # just call it .zip so everything has the same extension
+        cmd=cmd,
+        requires=['py'],
+        test_only=True,
+        needs_transitive_deps=True,  # needed for zip-safe detection
+        building_description="Creating pex info...",
+        pre_build=_handle_zip_safe,
+        deps=deps,
+        tools={
+            'interpreter': [interpreter or CONFIG.DEFAULT_PYTHON_INTERPRETER],
+            'pex': [CONFIG.PEX_TOOL],
+        },
+        stamp = True,
+        labels = labels,
+    )
+
+    # If there are resources specified, they have to get built into the pex.
+    deps = [pex_rule]
+    lib_rule = python_library(
+        name='_%s#lib' % name,
+        srcs=srcs,
+        resources=resources,
+        interpreter=interpreter,
+        deps=deps,
+        test_only=True,
+        visibility=visibility,
+        labels = labels,
+    )
+
+    deps = [pex_rule, lib_rule]
+
+    test_cmd = f'$TEST {flags}'
+    if worker:
+        test_cmd = f'$(worker {worker}) && {test_cmd} '
+        deps += [worker]
+    # This rule concatenates the .pex with all the other precompiled zip files from dependent rules.
+    return build_rule(
+        name=name,
+        srcs=[pex_rule],
+        deps=deps,
+        # N.B. the actual test sources are passed as data files as well. This is needed for pytest but
+        #      is faster for unittest as well (because we don't need to rebuild the pex if they change).
+        data=data | {'_srcs': srcs} if isinstance(data, dict) else data + srcs,
+        outs=[f'{name}.pex'],
+        labels=labels + ['test_results_dir'],
+        cmd='$TOOL z -i . -s .pex.zip -s .whl --preamble_from="$SRC" --include_other --strict',
+        test_cmd=test_cmd,
+        needs_transitive_deps=True,
+        output_is_complete=True,
+        binary=True,
+        test=True,
+        test_sandbox=sandbox,
+        building_description="Building pex...",
+        visibility=visibility,
+        test_timeout=timeout,
+        size = size,
+        flaky=flaky,
+        test_outputs=test_outputs,
+        requires=['py', 'test', interpreter or CONFIG.DEFAULT_PYTHON_INTERPRETER],
+        tools=[CONFIG.JARCAT_TOOL],
+    )
+
+def _handle_zip_safe(name):
+    """Handles the zip safe flag.
+    This works as a pre-build function and hence can only use the builtin
+    methods to manipulate the rule.
+    """
+    if has_label(name, 'py:zip-unsafe'):
+        set_command(name, get_command(name).replace(' --zip_safe', ''))

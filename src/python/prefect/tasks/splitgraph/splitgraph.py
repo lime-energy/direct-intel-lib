@@ -1,17 +1,17 @@
 from typing import Any, Dict
+
+import prefect
+from pandas_schema import Schema
 from prefect import Task
-from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.collections import DotDict
+from prefect.utilities.tasks import defaults_from_attrs
+from src.python.splitgraph import SchemaValidationError, parse_repo
+
 from splitgraph.config.config import create_config_dict, patch_config
 from splitgraph.core.engine import get_engine
 from splitgraph.core.repository import Repository, clone, table_exists_at
-from splitgraph.engine.postgres.engine import PostgresEngine
-from splitgraph.splitfile.execution import execute_commands
 from splitgraph.ingestion.pandas import df_to_table, sql_to_df
-from pandas_schema import Schema
-
-from src.python.splitgraph.repo_info import parse_repo
-from src.python.splitgraph.errors import SchemaValidationError
+from splitgraph.splitfile.execution import execute_commands
 
 
 class SplitgraphFetch(Task):
@@ -49,15 +49,7 @@ class SplitgraphFetch(Task):
         self.env = env
         
         super().__init__(**kwargs)
-    @property
-    def engine(self) -> PostgresEngine:
-        if getattr(self, "_engine", None) is None:
-            cfg = patch_config(create_config_dict(), self.env or dict())
-            engine = PostgresEngine(name='SplitgraphResult', conn_params=cfg)
-            engine.initialize()
 
-            self._engine = engine
-        return self._engine
     @defaults_from_attrs('uri', 'query')
     def run(self, uri: str = None, query: str = None, **kwargs: Any):
         """  
@@ -76,9 +68,7 @@ class SplitgraphFetch(Task):
 
         repo_info = DotDict(parse_repo(uri.format(**formatting_kwargs)))
 
-        assert self.engine.connected
-
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository, engine=self.engine)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
         remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
         cloned_repo=clone(
             remote,
