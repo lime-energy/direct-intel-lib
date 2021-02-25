@@ -1,5 +1,6 @@
 from typing import Any, Dict
 from prefect import Task
+from prefect.utilities.tasks import defaults_from_attrs
 from prefect.utilities.collections import DotDict
 from splitgraph.config.config import create_config_dict, patch_config
 from splitgraph.core.engine import get_engine
