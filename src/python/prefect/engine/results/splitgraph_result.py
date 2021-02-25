@@ -77,6 +77,7 @@ class SplitgraphResult(Result):
 
             self._engine = engine
         return self._engine
+        
     @property
     def repo_info(self) -> DotDict:
         return DotDict(parse_repo(self.location))

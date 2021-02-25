@@ -29,5 +29,9 @@ class SplitgraphKubernetesRun(KubernetesRun):
         *args,
         **kwargs
     ) -> None:
-        job_template = yaml.safe_load(read_bytes_from_path(DEFAULT_JOB_TEMPLATE_PATH))
-        super().__init__(job_template=job_template, **kwargs)
+        if kwargs.get("job_template"):
+            raise ValueError("job_template not allowed")
+        super().__init__(job_template=load_template(), **kwargs)
+
+    def load_template(self) -> str:
+        return yaml.safe_load(read_bytes_from_path(DEFAULT_JOB_TEMPLATE_PATH))
