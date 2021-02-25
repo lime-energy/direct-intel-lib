@@ -14,9 +14,7 @@ from splitgraph.core.engine import repository_exists, get_engine
 from splitgraph.core.repository import Repository, clone, table_exists_at
 from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.ingestion.pandas import df_to_table, sql_to_df
-from splitgraph.splitfile.execution import execute_commands
 
-from src.python.prefect.tasks.splitgraph import BuildSplitfileTask
 from src.python.splitgraph import SchemaValidationError, parse_repo
 
 project_name = os.environ.get('PREFECT_PROJECT_NAME')
