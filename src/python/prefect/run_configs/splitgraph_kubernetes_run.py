@@ -29,8 +29,9 @@ class SplitgraphKubernetesRun(KubernetesRun):
         *args,
         **kwargs
     ) -> None:
-        if kwargs.get("job_template"):
-            raise ValueError("job_template not allowed")
+        # if kwargs.get("job_template"):
+        #     raise ValueError("job_template not allowed")
+
         super().__init__(job_template=self.default_template, **kwargs)
 
     @property
