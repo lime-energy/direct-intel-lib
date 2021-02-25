@@ -1,3 +1,4 @@
+from typing import Any, Dict
 from prefect import Task
 from prefect.utilities.collections import DotDict
 from splitgraph.config.config import create_config_dict, patch_config
