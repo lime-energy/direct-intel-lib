@@ -21,8 +21,6 @@ from src.python.splitgraph.errors import SchemaValidationError
 project_name = os.environ.get('PREFECT_PROJECT_NAME')
 
 class SplitgraphResult(Result):
-    repo_pattern = re.compile('(?P<namespace>.*)/(?P<repo>.*):(?P<tag>.*)/(?P<table>.*)')
-
     """
     Result that is written to and retrieved from Splitgraph.
     Splitgraph uses the following env vars
