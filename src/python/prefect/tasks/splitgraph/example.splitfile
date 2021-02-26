@@ -1,0 +1,7 @@
+FROM business-di-raw/test-di-program-doc-delivery-4:latest IMPORT {SELECT 
+"Container",
+md5(string_agg(concat("FileName"), ';'))
+FROM
+exported_documents
+group by "Container"
+} AS container-hashes

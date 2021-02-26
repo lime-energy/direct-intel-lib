@@ -1,9 +1,15 @@
 package(default_visibility = ["PUBLIC"])
 
+pip_library(
+  name = "pkg_resources",
+  version = "53.0.0",
+  package_name = "setuptools",
+)
+
 
 filegroup(
   name = "standard_deps",
-   deps = [
+  deps = [
         ":prefect",
         ":splitgraph",
         ":pandas"
@@ -291,7 +297,18 @@ pip_library(
     ":splitgraph-pipelinewise-target-postgres",
     ":sqlalchemy",
     ":parsimonious",
+    ":click",
+    ":click-log",
   ]
+)
+
+pip_library(
+  name = "click",
+  version = "7.1.2",
+)
+pip_library(
+  name = "click-log",
+  version = "0.3.2",
 )
 
 pip_library(
@@ -331,8 +348,7 @@ pip_library(
 
 # certifi==2020.12.5
 # chardet==4.0.0
-# click==7.1.2
-# click-log==0.3.2
+
 # docker==4.4.2
 # idna==2.10
 # inflection==0.5.1

@@ -1,5 +1,5 @@
 import typing
-from pandas_schema.validation_warning import ValidationWarning
+from pandas_schema import ValidationWarning
 
 class SchemaValidationError(Exception):
     def __init__(

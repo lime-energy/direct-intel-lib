@@ -68,22 +68,13 @@ class SplitgraphResult(Result):
 
         super().__init__(**kwargs)
     
-    @property
-    def engine(self) -> PostgresEngine:
-        if getattr(self, "_engine", None) is None:
-            cfg = patch_config(create_config_dict(), self.env or dict())
-            engine = PostgresEngine(name='SplitgraphResult', conn_params=cfg)
-            engine.initialize()
-
-            self._engine = engine
-        return self._engine
-        
+   
     @property
     def repo_info(self) -> DotDict:
         return DotDict(parse_repo(self.location))
     @property
     def default_location(self) -> str:
-        location = "foobar"
+        location = "{flow_name}/{task_name}:{tag or uuid.uuid4()}/prefect_result"
         return location
 
 
@@ -95,12 +86,11 @@ class SplitgraphResult(Result):
         new.location = location
         try:            
         
-            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo, engine=self.engine)
-
-            assert self.engine.connected
+            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo)
+            remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
 
             cloned_repo=clone(
-                self.get_upstream(repo),
+                remote,
                 local_repository=repo,
                 download_all=True,
                 overwrite_objects=True,
@@ -153,10 +143,10 @@ class SplitgraphResult(Result):
 
         repo_info = DotDict(parse_repo(new.location))
     
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo, engine=self.engine)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
+        remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
 
         assert isinstance(value_, pd.DataFrame)
-        assert self.engine.connected
 
         if not repository_exists(repo) and self.auto_init_repo:
             self.logger.info("Creating repo {}/{}...".format(repo.namespace, repo.repository))
@@ -166,7 +156,7 @@ class SplitgraphResult(Result):
 
         self.logger.info("Starting to upload result to {}...".format(new.location))
 
-        with self.atomic(self.engine):
+        with self.atomic(repo.engine):
             self.logger.info("checkout")
             img = repo.head
             img.checkout(force=True)
@@ -183,7 +173,7 @@ class SplitgraphResult(Result):
         if self.auto_push:
             self.logger.info("push")
             repo.push(
-                self.get_upstream(repo),
+                remote,
                 handler="S3",
                 overwrite_objects=True,
                 overwrite_tags=True,
@@ -211,11 +201,10 @@ class SplitgraphResult(Result):
 
         try:
             repo_info = DotDict(parse_repo(location))
-            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo, engine=self.engine)
-
-            assert self.engine.connected
+            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
+            remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
  
-            table_exists_at(self.get_upstream(repo), repo_info.table)
+            table_exists_at(remote, repo_info.table)
             return self.client.get_object(Bucket=self.bucket, Key=location.format(**kwargs))
 
         except Exception as exc:
@@ -231,6 +220,3 @@ class SplitgraphResult(Result):
         finally:
             self.logger.info("engine commit")
             engine.commit()
-
-    def get_upstream(self, repository: Repository):
-        return Repository.from_template(repository, engine=get_engine(self.remote_name, autocommit=True))
