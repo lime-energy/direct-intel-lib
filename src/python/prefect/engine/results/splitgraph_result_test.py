@@ -10,7 +10,7 @@ from prefect.engine import TaskRunner
 import logging
 from src.python.prefect.engine.results import SplitgraphResult
 logging.info('test')
-result=SplitgraphResult(location="business-di-raw/test-di-program-doc-delivery-4:{today_nodash}/exported_documents", remote_name='bedrock', auto_init_repo=True)
+result=SplitgraphResult(location="test1/test1:{today_nodash}/test_abc", remote_name='bedrock', auto_init_repo=True)
 @task(result=result, checkpoint=True)
 def test_task():
     index = pd.date_range("1/1/2000", periods=8)
