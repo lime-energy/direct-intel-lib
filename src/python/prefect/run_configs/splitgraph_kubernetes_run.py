@@ -1,6 +1,5 @@
 import os
-from collections.abc import Iterable
-from typing import Union
+from typing import Union, Iterable
 
 import yaml
 from pkg_resources import resource_stream
