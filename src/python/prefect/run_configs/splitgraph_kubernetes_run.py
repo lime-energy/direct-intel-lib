@@ -20,7 +20,7 @@ def SplitgraphKubernetesRun(
         labels: Iterable[str] = None,
 ) -> None:
 
-    job_template = yaml.safe_load(read_bytes_from_path(DEFAULT_JOB_TEMPLATE_PATH))
+    job_template = yaml.safe_load(resource_stream(__name__, "job_template.yaml"))
     return KubernetesRun(
         job_template=job_template,
         image=image,
