@@ -1,9 +1,10 @@
 import os
-import yaml
+from collections.abc import Iterable
 from typing import Union
+
+import yaml
 from pkg_resources import resource_stream
 from prefect.run_configs import KubernetesRun
-
 
 DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
 
