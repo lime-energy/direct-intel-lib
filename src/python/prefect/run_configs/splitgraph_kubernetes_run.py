@@ -1,6 +1,6 @@
 import os
 import yaml
-
+from typing import Union
 from pkg_resources import resource_stream
 from prefect.run_configs import KubernetesRun
 
