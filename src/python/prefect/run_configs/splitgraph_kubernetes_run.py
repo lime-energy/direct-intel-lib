@@ -4,32 +4,32 @@ import yaml
 from pkg_resources import resource_stream
 from prefect.run_configs import KubernetesRun
 
-class SplitgraphKubernetesRun(KubernetesRun):
-    """Configure a flow-run to run as a Kubernetes Job.
 
-    By default, configures a job with a flow container and a sidecar running
-    a splitgraph engine. The flow default sgr host is configured to the
-    splitgraph sidecar.
+DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
 
-    Examples:
 
-    Use the defaults set on the agent:
+def SplitgraphKubernetesRun(
+        image: str = None,
+        env: dict = None,
+        cpu_limit: Union[float, str] = None,
+        cpu_request: Union[float, str] = None,
+        memory_limit: str = None,
+        memory_request: str = None,
+        service_account_name: str = None,
+        image_pull_secrets: Iterable[str] = None,
+        labels: Iterable[str] = None,
+) -> None:
 
-    ```python
-    flow.run_config = SplitgraphKubernetesRun()
-    ```
-    """
-
-    def __init__(
-        self,
-        *args,
-        **kwargs
-    ) -> None:
-        # if kwargs.get("job_template"):
-        #     raise ValueError("job_template not allowed")
-
-        super().__init__(job_template=self.default_template, **kwargs)
-
-    @property
-    def default_template(self) -> str:
-        return yaml.safe_load(resource_stream(__name__, "job_template.yaml"))
+    job_template = yaml.safe_load(read_bytes_from_path(DEFAULT_JOB_TEMPLATE_PATH))
+    return KubernetesRun(
+        job_template=job_template,
+        image=image,
+        env=env,
+        cpu_limit=cpu_limit,
+        cpu_request=cpu_request,
+        memory_limit=memory_limit,
+        memory_request=memory_request,
+        service_account_name=service_account_name,
+        image_pull_secrets=image_pull_secrets,
+        labels=labels,
+    )
