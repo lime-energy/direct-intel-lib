@@ -12,6 +12,7 @@ spec:
           secretName: splitgraph
       containers:
         - name: flow
+          imagePullPolicy: Always
           command:
           - /bin/sh
           - -c
