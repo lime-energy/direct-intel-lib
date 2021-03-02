@@ -12,11 +12,16 @@ filegroup(
   deps = [
         ":prefect",
         ":splitgraph",
-        ":pandas"
+        ":pandas",
+        ":pyodbc",
       ]
 )
 
 
+python_wheel(
+  name = "pyodbc",
+  version = "4.0.30",
+)
 
 
 # ██████╗ ██████╗ ███████╗███████╗███████╗ ██████╗████████╗
@@ -57,7 +62,6 @@ pip_library(
     ":docker",
     ":websocket-client",
     ":dask",
-    ":pyodbc",
     ":boto3",
     ":botocore",
     ":distributed",
@@ -184,10 +188,6 @@ pip_library(
 )
 
 
-pip_library(
-  name = "pyodbc",
-  version = "4.0.30",
-)
 
 pip_library(
   name = "boto3",

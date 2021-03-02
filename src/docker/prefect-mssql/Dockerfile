@@ -7,7 +7,7 @@ RUN apt-get update \
     && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list \
     && apt-get update \
     # Install odbc drivers
-    && apt-get install -y g++ unixodbc-dev libc6-dev \
+    && apt-get install -y g++ unixodbc-dev \
     && ACCEPT_EULA=Y apt-get install msodbcsql17
 
 ENV PYTHONPATH "$PYTHONPATH:/flow_base/third_party/python/:/flow_base/"
