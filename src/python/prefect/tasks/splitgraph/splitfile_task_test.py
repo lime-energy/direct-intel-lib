@@ -1,6 +1,7 @@
 import unittest
 import prefect
-from pkg_resources import resource_listdir, resource_string
+import pkgutil
+
 from prefect.engine import TaskRunner
 
 from .splitfile_task import SplitfileTask
@@ -10,7 +11,7 @@ from .splitfile_task import SplitfileTask
 class SplitfileTaskTest(unittest.TestCase):
 
     def test_can_build_splitfile(self):
-        splitfile = resource_string("src.python.prefect.tasks.splitgraph", "example.splitfile").decode("utf-8")
+        splitfile = pkgutil.get_data(__name__, "example.splitfile").decode("utf-8")
         splitfile_task = SplitfileTask(
             uri="integration-tests/splitfile-test:{today_nodash}/table", 
             splitfile_commands=splitfile,

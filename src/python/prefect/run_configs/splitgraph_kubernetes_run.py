@@ -1,11 +1,9 @@
 import os
-from typing import Union, Iterable
+import pkgutil
+from typing import Iterable, Union
 
 import yaml
-from pkg_resources import resource_stream
 from prefect.run_configs import KubernetesRun
-
-DEFAULT_JOB_TEMPLATE_PATH = os.path.join(os.path.dirname(__file__), "job_template.yaml")
 
 
 def SplitgraphKubernetesRun(
@@ -19,8 +17,7 @@ def SplitgraphKubernetesRun(
         image_pull_secrets: Iterable[str] = None,
         labels: Iterable[str] = None,
 ) -> None:
-
-    job_template = yaml.safe_load(resource_stream(__name__, "job_template.yaml"))
+    job_template = yaml.safe_load(pkgutil.get_data(__name__, "job_template.yaml"))
     return KubernetesRun(
         job_template=job_template,
         image=image,

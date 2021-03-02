@@ -4,7 +4,6 @@ import pandas as pd
 import numpy as np
 import pendulum
 import prefect
-from pkg_resources import resource_listdir, resource_string
 from prefect import Flow, task
 from prefect.engine import TaskRunner
 import logging

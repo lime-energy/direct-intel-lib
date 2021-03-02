@@ -1,10 +1,9 @@
 import unittest
+
 import prefect
-from pkg_resources import resource_listdir, resource_string
 from prefect.engine import TaskRunner
 
 from .splitgraph_kubernetes_run import SplitgraphKubernetesRun
-
 
 
 class SplitfileTaskTest(unittest.TestCase):

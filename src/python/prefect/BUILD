@@ -18,6 +18,6 @@ python_test(
     site = True,
     deps = [
         ":lib",
-         "//third_party/python:pkg_resources",
+
         ],
 )

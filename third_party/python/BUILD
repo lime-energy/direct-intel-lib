@@ -1,10 +1,5 @@
 package(default_visibility = ["PUBLIC"])
 
-pip_library(
-  name = "pkg_resources",
-  version = "53.0.0",
-  package_name = "setuptools",
-)
 
 
 filegroup(
