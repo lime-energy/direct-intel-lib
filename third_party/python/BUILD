@@ -18,7 +18,7 @@ filegroup(
 )
 
 
-python_wheel(
+pip_library(
   name = "pyodbc",
   version = "4.0.30",
 )
