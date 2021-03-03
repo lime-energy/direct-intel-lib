@@ -10,10 +10,8 @@ RUN apt-get update \
     && apt-get install -y g++ unixodbc-dev \
     && ACCEPT_EULA=Y apt-get install msodbcsql17
 
-ENV PYTHONPATH "$PYTHONPATH:/flow_base/third_party/python/:/flow_base/"
+ENV PYTHONPATH "$PYTHONPATH:/flow_base/third_party/python/:/flow_base/src/python"
 COPY /mssql_deps_bin.pex /mssql_deps_bin.pex
-RUN mkdir tmpextract flow_base
-RUN unzip /mssql_deps_bin.pex -d /tmpextract/
-RUN cp -R /tmpextract/src/python /flow_base
+RUN mkdir flow_base
+RUN unzip /mssql_deps_bin.pex -d /flow_base/
 RUN rm /mssql_deps_bin.pex
-RUN rm -r /tmpextract
