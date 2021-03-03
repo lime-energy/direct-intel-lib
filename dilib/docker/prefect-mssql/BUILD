@@ -7,7 +7,7 @@ python_binary(
     name = "mssql_deps_bin",
     main = "noop.py",
     deps = [         
-        "//src/python/dilib/prefect:lib",
+        "//dilib/prefect:lib",
         "//third_party/python:standard_deps",
         ],
 )
