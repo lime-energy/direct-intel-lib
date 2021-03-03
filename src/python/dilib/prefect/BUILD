@@ -5,7 +5,7 @@ python_library(
     resources = glob(["**/*.yml", "**/*.yaml"]),
     deps = [
         # "//third_party/python:standard_deps",
-        "//src/python/splitgraph:lib",
+        "//src/python/dilib/splitgraph:lib",
         ],
 )
 

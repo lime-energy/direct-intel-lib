@@ -7,7 +7,7 @@ import prefect
 from prefect import Flow, task
 from prefect.engine import TaskRunner
 import logging
-from src.python.prefect.engine.results import SplitgraphResult
+from dilib.prefect.engine.results import SplitgraphResult
 logging.info('test')
 result=SplitgraphResult(location="test1/test1:{today_nodash}/test_abc", remote_name='bedrock', auto_init_repo=True)
 @task(result=result, checkpoint=True)

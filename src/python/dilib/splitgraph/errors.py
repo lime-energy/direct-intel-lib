@@ -1,4 +1,5 @@
 import typing
+
 from pandas_schema import ValidationWarning
 
 class SchemaValidationError(Exception):

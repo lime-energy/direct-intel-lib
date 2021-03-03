@@ -12,6 +12,8 @@ RUN apt-get update \
 
 ENV PYTHONPATH "$PYTHONPATH:/flow_base/third_party/python/:/flow_base/"
 COPY /mssql_deps_bin.pex /mssql_deps_bin.pex
-RUN mkdir flow_base
-RUN unzip /mssql_deps_bin.pex -d /flow_base/
+RUN mkdir tmpextract flow_base
+RUN unzip /mssql_deps_bin.pex -d /tmpextract/
+RUN cp -R /tmpextract/src/python /flow_base
 RUN rm /mssql_deps_bin.pex
+RUN rm -r /tmpextract

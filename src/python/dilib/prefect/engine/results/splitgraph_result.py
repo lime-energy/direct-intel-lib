@@ -14,7 +14,7 @@ from splitgraph.core.repository import Repository, clone, table_exists_at
 from splitgraph.engine.postgres.engine import PostgresEngine
 from splitgraph.ingestion.pandas import df_to_table, sql_to_df
 
-from src.python.splitgraph import parse_repo, SchemaValidationError
+from dilib.splitgraph import parse_repo, SchemaValidationError
 
 class SplitgraphResult(Result):
     """
