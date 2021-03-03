@@ -34,8 +34,6 @@ spec:
         - name: sgr
           image: splitgraph/engine
           imagePullPolicy: Always
-          lifecycle:
-            type: Sidecar
           ports:
           - name: postgres
             containerPort: 5432
