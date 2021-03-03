@@ -66,7 +66,7 @@ class AWSSecret(SecretBase):
         return self.get(secret_name, key, template)
 
 
-    def get(self) -> Optional[str]:
+    def get(self, secret_name, key, template) -> Optional[str]:
         """
         Retrieve the secret value.  If not found, returns `None`.
 
