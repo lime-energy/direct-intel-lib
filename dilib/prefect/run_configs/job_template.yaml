@@ -42,7 +42,7 @@ spec:
           - name: POSTGRES_PASSWORD
             value: supersecure
           - name: SG_ENGINE_HOST
-            value: '127.0.0.1'
+            value: '127.0.0.0'
           lifecycle:
             postStart:
               exec:
