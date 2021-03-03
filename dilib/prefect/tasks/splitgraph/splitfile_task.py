@@ -56,6 +56,12 @@ class SplitfileTask(Task):
             - No return
         """
 
+
+        from splitgraph.config import create_config_dict
+        self.logger("DEBUG SGR CONFIG")
+        self.logger(create_config_dict())
+
+
         formatting_kwargs = {
             **kwargs,
             **prefect.context.get("parameters", {}).copy(),
