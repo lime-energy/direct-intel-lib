@@ -43,6 +43,10 @@ spec:
           env:
           - name: POSTGRES_PASSWORD
             value: supersecure
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", 'sgr init']
           livenessProbe:
             exec:
               command:
