@@ -1,5 +1,7 @@
 from typing import Any
+
 from prefect.engine.serializers import Serializer
+
 
 class NullSerializer(Serializer):
     """A Serializer does nothing"""

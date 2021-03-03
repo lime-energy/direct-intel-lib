@@ -17,7 +17,7 @@ def SplitgraphKubernetesRun(
         image_pull_secrets: Iterable[str] = None,
         labels: Iterable[str] = None,
 ) -> None:
-    job_template = yaml.safe_load(pkgutil.get_data("dilib.prefect.run_configs", "job_template.yaml"))
+    job_template = yaml.safe_load(pkgutil.get_data(__package__, "job_template.yaml"))
     return KubernetesRun(
         job_template=job_template,
         image=image,

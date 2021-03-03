@@ -9,7 +9,7 @@
 version = 15.16.0
 [python]
 moduledir = third_party.python
-moduledir = src.python
+
 DisableVendorFlags = true
 
 [build]

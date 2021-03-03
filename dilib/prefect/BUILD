@@ -5,7 +5,7 @@ python_library(
     resources = glob(["**/*.yml", "**/*.yaml"]),
     deps = [
         # "//third_party/python:standard_deps",
-        "//src/python/dilib/splitgraph:lib",
+        "//dilib/splitgraph:lib",
         ],
 )
 
@@ -13,7 +13,7 @@ python_library(
 python_test(
     name = "tests",
     srcs = glob(["**/*_test.py"]),
-    resources = glob(["**/*.splitfile", "**/*.sgconfig"]),
+    resources = glob(["**/*.splitfile"]),
     #zip_safe = False,
     site = True,
     deps = [
@@ -21,3 +21,4 @@ python_test(
 
         ],
 )
+
