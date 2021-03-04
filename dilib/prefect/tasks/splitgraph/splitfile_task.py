@@ -24,13 +24,13 @@ class SplitfileTask(Task):
     Examples:
 
     ```python
-    
+
     ```
 
     """
 
     def __init__(
-      self, 
+      self,
       uri: str,
       splitfile_commands: str,
       remote_name: str = 'bedrock',
@@ -43,12 +43,12 @@ class SplitfileTask(Task):
         self.remote_name = remote_name
         self.env = env
         self.auto_push = auto_push
-        
+
         super().__init__(**kwargs)
 
     @defaults_from_attrs('uri', 'splitfile_commands')
     def run(self, uri: str = None, splitfile_commands: str = None, **kwargs: Any):
-        """  
+        """
 
         Args:
 
@@ -58,14 +58,14 @@ class SplitfileTask(Task):
 
 
         from splitgraph.config import create_config_dict
-        self.logger("DEBUG SGR CONFIG")
-        self.logger(create_config_dict())
+        self.logger.info("DEBUG SGR CONFIG")
+        self.logger.info(create_config_dict())
 
 
         formatting_kwargs = {
             **kwargs,
             **prefect.context.get("parameters", {}).copy(),
-            **prefect.context,            
+            **prefect.context,
         }
 
         repo_info = DotDict(parse_repo(uri.format(**formatting_kwargs)))
