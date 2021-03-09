@@ -16,10 +16,8 @@ spec:
           command:
           - /bin/sh
           - -c
-          - trap "rm /tmp/pod/main-executing" EXIT; $0
+          - trap "rm /tmp/pod/main-executing" EXIT; while :; do echo 'waiting sgr'; sleep 3; if [ -f "/tmp/pod/sgr-executing" ]; then break; fi done; $0
           env:
-          - name: SG_ENGINE_HOST
-            value: '127.0.0.1'
           - name: SG_CONFIG_FILE
             value: /var/splitgraph/.sgconfig
           lifecycle:
@@ -29,8 +27,8 @@ spec:
           volumeMounts:
           - name: shared
             mountPath: /tmp/pod
-          - mountPath: /var/splitgraph
-            name: splitgraph
+          - name: splitgraph
+            mountPath: /var/splitgraph
         - name: sgr
           image: splitgraph/engine
           imagePullPolicy: Always
@@ -41,12 +39,12 @@ spec:
           env:
           - name: POSTGRES_PASSWORD
             value: supersecure
-          - name: SG_ENGINE_HOST
-            value: '127.0.0.1'
+          - name: SG_CONFIG_FILE
+            value: /var/splitgraph/.sgconfig
           lifecycle:
             postStart:
               exec:
-                command: ["/bin/sh", "-c", 'sgr init']
+                command: ["/bin/sh", "-c", 'sgr init; touch /tmp/pod/sgr-executing']
           livenessProbe:
             exec:
               command:
@@ -57,3 +55,5 @@ spec:
           volumeMounts:
           - name: shared
             mountPath: /tmp/pod
+          - name: splitgraph
+            mountPath: /var/splitgraph
