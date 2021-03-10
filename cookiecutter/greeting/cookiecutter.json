@@ -1,0 +1,6 @@
+{
+    "project_name": "default",
+    "flow_name": "Greeting Flow",
+    "flow_module": "{{ cookiecutter.flow_name | lower | replace(' ', '_') }}",
+    "description": "{{ cookiecutter.flow_name }} does a lot of stuff. Needs some stuff to be ready. Outputs processed stuff"
+}
