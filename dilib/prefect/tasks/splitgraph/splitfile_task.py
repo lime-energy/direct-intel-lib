@@ -68,9 +68,9 @@ class SplitfileTask(Task):
             **prefect.context,
         }
 
-        repo_info = DotDict(parse_repo(uri.format(**formatting_kwargs)))
+        repo_info = parse_repo(uri.format(**formatting_kwargs))
 
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
         remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
         execute_commands(splitfile_commands, formatting_kwargs, repo)
         repo.head.tag(repo_info.tag)

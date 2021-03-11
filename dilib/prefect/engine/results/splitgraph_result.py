@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Any, Dict
 
 import pandas as pd
-from dilib.splitgraph import SchemaValidationError, parse_repo
+from dilib.splitgraph import SchemaValidationError, parse_repo, RepoInfo
 from pandas_schema import Schema
 from prefect import Task, task
 from prefect.engine.result import Result
@@ -66,8 +66,8 @@ class SplitgraphResult(Result):
     
    
     @property
-    def repo_info(self) -> DotDict:
-        return DotDict(parse_repo(self.location))
+    def repo_info(self) -> RepoInfo:
+        return parse_repo(self.location)
     @property
     def default_location(self) -> str:
         location = "{flow_name}/{task_name}:{tag or uuid.uuid4()}/prefect_result"
@@ -137,9 +137,9 @@ class SplitgraphResult(Result):
         new = self.format(**kwargs)
         new.value = value_
 
-        repo_info = DotDict(parse_repo(new.location))
+        repo_info = parse_repo(new.location)
     
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
         remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
        
         assert isinstance(value_, pd.DataFrame)
@@ -198,8 +198,8 @@ class SplitgraphResult(Result):
         """
 
         try:
-            repo_info = DotDict(parse_repo(location))
-            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
+            repo_info = parse_repo(location)
+            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
             remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
  
             table_exists_at(remote, repo_info.table)
