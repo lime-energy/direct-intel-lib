@@ -1,7 +1,7 @@
 import pkgutil
 import unittest
 from datetime import datetime
-from typing import List
+from typing import List, TypedDict
 
 import numpy as np
 import pandas as pd
@@ -13,7 +13,7 @@ from dilib.prefect.tasks.splitgraph import (CommitTask, DataFrameToTableParams,
                                             SemanticCheckoutTask,
                                             SemanticCleanupTask,
                                             VersionToDateTask)
-from dilib.splitgraph import RepoInfo
+from dilib.splitgraph import RepoInfoDict
 from prefect import Flow, Parameter, Task, apply_map, task
 from prefect.core import Edge
 from prefect.engine import TaskRunner
@@ -22,7 +22,7 @@ from prefect.engine.results.constant_result import ConstantResult
 from prefect.engine.state import Success
 from prefect.tasks.core.constants import Constant
 from prefect.utilities.debug import raise_on_exception
-from prefect.utilities.tasks import unmapped
+from prefect.utilities.edges import unmapped
 from semantic_version import Version
 
 from splitgraph.core.engine import repository_exists
@@ -58,13 +58,13 @@ def fake_extract(periods: int) -> DataFrameToTableParams:
     )
 
 remote_name='bedrock'
-repo_info = RepoInfo(namespace="unittest", repository="unittest")
-checkout = SemanticCheckoutTask(repo_info=repo_info, remote_name=remote_name)
-df_to_table_task = DataFrameToTableTask(repo_info=repo_info)
-commit = CommitTask(repo_info=repo_info)
+repo_dict = RepoInfoDict(namespace="unittest", repository="unittest")
+checkout = SemanticCheckoutTask(repo_dict=repo_dict, remote_name=remote_name)
+df_to_table_task = DataFrameToTableTask(repo_dict=repo_dict)
+commit = CommitTask(repo_dict=repo_dict)
 sematic_bump = SemanticBumpTask()
-sematic_cleanup = SemanticCleanupTask(repo_info=repo_info, remote_name=remote_name)
-push = PushRepoTask(repo_info=repo_info, remote_name=remote_name)
+sematic_cleanup = SemanticCleanupTask(repo_dict=repo_dict, remote_name=remote_name)
+push = PushRepoTask(repo_dict=repo_dict, remote_name=remote_name)
 
 
 with Flow('sample') as flow:
@@ -93,6 +93,7 @@ class RepoTasksTest(unittest.TestCase):
         for tag in tags:
             img.tag(tag)
 
+
     def test_can_run_sample_flow(self):
 
         with raise_on_exception():
@@ -107,11 +108,11 @@ class RepoTasksTest(unittest.TestCase):
                     print(state.result)
                     self.fail()
     def test_can_checkout_new_tag(self):
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="1",
+            repo_dict=repo_dict,
+            semantic_dict={'major': '1'},
         )
         runner = TaskRunner(task=checkout)
 
@@ -128,12 +129,11 @@ class RepoTasksTest(unittest.TestCase):
                 self.assertEqual(version, None)
 
     def test_checkout_new_prerelease_fails(self):
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="1",
-            prerelease="hourly"
+            repo_dict=repo_dict,
+            semantic_dict={'major': '1', 'prerelease': 'hourly'},
         )
         runner = TaskRunner(task=checkout)
 
@@ -143,11 +143,11 @@ class RepoTasksTest(unittest.TestCase):
 
     def test_can_checkout_already_tagged_repo(self):
         self.tag_repo(['1', '1.0', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish'])
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="1",
+            repo_dict=repo_dict,
+            semantic_dict={'major': '1'},
         )
         runner = TaskRunner(task=checkout)
 
@@ -165,11 +165,11 @@ class RepoTasksTest(unittest.TestCase):
    # In this case, we expect the matching major with the greatest minor
     def test_can_checkout_with_no_minor_specified(self):
         self.tag_repo(['1', '1.0', '1.1', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish', '1.1.1+20200228.blue-moon'])
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="1",
+            repo_dict=repo_dict,
+            semantic_dict={'major': '1'},
         )
         runner = TaskRunner(task=checkout)
 
@@ -186,11 +186,11 @@ class RepoTasksTest(unittest.TestCase):
 
     def test_can_checkout_with_new_major(self):
         self.tag_repo(['1', '1.0', '1.1', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish', '1.1.1+20200228.blue-moon'])
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="2",
+            repo_dict=repo_dict,
+            semantic_dict={'major': '2'},
         )
         runner = TaskRunner(task=checkout)
 
@@ -207,24 +207,24 @@ class RepoTasksTest(unittest.TestCase):
 
     def test_can_clone_repo_with_patches(self):
         self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory', '1.0.1', '1.0.1+20200307.pink-bear'])
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="1",
-            minor="1",
+            repo_dict=repo_dict,
+            semantic_dict={'major': '1', 'minor': '1'},
         )
         runner = TaskRunner(task=checkout)
 
-        with prefect.context():
-            state = runner.run()
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run()
 
-            if state.is_failed():
-                print(state)
-                self.fail()
+                if state.is_failed():
+                    print(state)
+                    self.fail()
 
-            version = state.result
-            self.assertEqual(version, Version('1.0.1+20200307.pink-bear'))
+                version = state.result
+                self.assertEqual(version, Version('1.0.1+20200307.pink-bear'))
 
 
     def test_can_clone_with_hourly_prerelease_tags(self):
@@ -235,35 +235,34 @@ class RepoTasksTest(unittest.TestCase):
             '1.0.2-hourly.1+20200301.blue-ivory',
             '1.0.2-hourly.2+20200301.green-monster']
         )
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
-            major="1",
-            minor="0",
-            prerelease="hourly"
+            repo_dict=repo_dict,
+            semantic_dict={'major': '1', 'minor': '1', 'prerelease': 'hourly'},
         )
         runner = TaskRunner(task=checkout)
 
-        with prefect.context():
-            state = runner.run()
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run()
 
-            if state.is_failed():
-                print(state)
-                self.fail()
+                if state.is_failed():
+                    print(state)
+                    self.fail()
 
-            version = state.result
-            self.assertEqual(version, Version('1.0.2-hourly.2+20200301.green-monster'))
+                version = state.result
+                self.assertEqual(version, Version('1.0.2-hourly.2+20200301.green-monster'))
 
     def test_can_commit(self):
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
         )
         commit = CommitTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
         )
         checkout.run()
         df_to_table(fake_data(10), repository=self.repo, table="unit_test", if_exists='replace')
@@ -271,24 +270,25 @@ class RepoTasksTest(unittest.TestCase):
         runner = TaskRunner(task=commit)
 
 
-        with prefect.context():
-            state = runner.run()
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run()
 
-            if state.is_failed():
-                print(state)
-                self.fail()
-        self.assertListEqual(self.repo.head.get_tags(), ['HEAD'])
+                if state.is_failed():
+                    print(state)
+                    self.fail()
+            self.assertListEqual(self.repo.head.get_tags(), ['HEAD'])
 
     def test_can_commit_with_tags(self):
         self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory'])
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
         )
         commit = CommitTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
         )
         checkout.run()
         df_to_table(fake_data(10), repository=self.repo, table="unit_test", if_exists='replace')
@@ -298,26 +298,27 @@ class RepoTasksTest(unittest.TestCase):
         upstream_edge = Edge(Task(), commit, key='tags')
         tag_state = Success(result=ConstantResult(value=['foo', 'bar', 'tag1_w_upstream']))
 
-        with prefect.context():
-            state = runner.run(upstream_states={upstream_edge: tag_state})
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run(upstream_states={upstream_edge: tag_state})
 
-            if state.is_failed():
-                print(state)
-                self.fail()
+                if state.is_failed():
+                    print(state)
+                    self.fail()
 
 
-            self.assertCountEqual(self.repo.head.get_tags(), ['HEAD', 'foo', 'bar', 'tag1_w_upstream'])
+                self.assertCountEqual(self.repo.head.get_tags(), ['HEAD', 'foo', 'bar', 'tag1_w_upstream'])
 
     def test_can_import_df(self):
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
 
         checkout = SemanticCheckoutTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
         )
         checkout.run()
         df_to_table = DataFrameToTableTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
         )
 
         runner = TaskRunner(task=df_to_table)
@@ -398,7 +399,9 @@ class RepoTasksTest(unittest.TestCase):
 
     def test_can_semantic_bump_new_major(self):
 
-        semantic_bump = SemanticBumpTask(major='2', minor='1')
+        semantic_bump = SemanticBumpTask(
+            semantic_dict={'major': '2', 'minor': '1'},
+        )
 
         runner = TaskRunner(task=semantic_bump)
         edge = Edge(Task(), semantic_bump, key='base_ref')
@@ -439,10 +442,10 @@ class RepoTasksTest(unittest.TestCase):
                 self.assertEqual(state.result, ['1-hourly', '1.0-hourly', f'1.0.1-hourly.5+{date:%Y-%m-%dT%H}.{date:%M}.{flow_run_name}'])
 
     def test_can_push(self):
-        repo_info = RepoInfo(namespace="abc", repository="1234")
+        repo_dict = RepoInfoDict(namespace="abc", repository="1234")
 
         push = PushRepoTask(
-            repo_info=repo_info,
+            repo_dict=repo_dict,
             remote_name='bedrock'
         )
 

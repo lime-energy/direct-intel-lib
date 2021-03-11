@@ -6,7 +6,8 @@ import pandas as pd
 import pendulum
 import prefect
 from dilib.format import format_with_default
-from dilib.splitgraph import RepoInfo, SchemaValidationError, parse_repo
+from dilib.splitgraph import (RepoInfo, RepoInfoDict, SchemaValidationError,
+                              SemanticInfo, SemanticInfoDict, parse_repo)
 from prefect import Task
 from prefect.utilities.collections import DotDict
 from prefect.utilities.tasks import defaults_from_attrs
@@ -50,23 +51,19 @@ class SemanticCheckoutTask(Task):
 
     def __init__(
       self,
-      repo_info: RepoInfo,
-      major: str = '1',
-      minor: str = None,
-      prerelease: str = None,
+      repo_dict: RepoInfoDict,
+      semantic_dict: SemanticInfoDict = {'major': '1'},
       remote_name: str = None,
       **kwargs
     ) -> None:
-        self.repo_info = repo_info
-        self.major = major
-        self.minor = minor
-        self.prerelease = prerelease
+        self.repo_dict = repo_dict
+        self.semantic_dict = semantic_dict
         self.remote_name = remote_name
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_info', 'major', 'minor', 'prerelease', 'remote_name')
-    def run(self, repo_info: RepoInfo = None, major: str = None, minor: str = None, prerelease: str = None, remote_name: str = None, **kwargs: Any) -> Union[Version, None]:
+    @defaults_from_attrs('repo_dict', 'semantic_dict', 'remote_name')
+    def run(self, repo_dict: RepoInfoDict = None, semantic_dict: SemanticInfoDict = None, remote_name: str = None, **kwargs: Any) -> Union[Version, None]:
         """
 
         Args:
@@ -75,20 +72,13 @@ class SemanticCheckoutTask(Task):
             - Tuple of image_hash and semantic base_ref. If base_ref is None this means no semantic tags
             exist yet.
         """
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get('parameters', {}).copy(),
-            **prefect.context,
-        }
-        namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
-        repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
+        assert repo_dict, 'Must specify repo.'
 
-        major = format_with_default(major, '1', **formatting_kwargs)
-        minor = format_with_default(minor, None, **formatting_kwargs)
-        prerelease = format_with_default(prerelease, None, **formatting_kwargs)
-        remote_name = format_with_default(remote_name, None, **formatting_kwargs)
+        repo_info = RepoInfo(**repo_dict)
+        semantic_info = SemanticInfo(**semantic_dict)
 
-        repo = Repository(namespace=namespace, repository=repository)
+
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
 
         if not repository_exists(repo):
             self.logger.info("Creating repo {}/{}...".format(repo.namespace, repo.repository))
@@ -112,14 +102,14 @@ class SemanticCheckoutTask(Task):
 
         valid_versions = [version for version in version_list if version]
 
-        spec_expr = f'<={major}.{minor}' if minor else f'<={major}'
+        spec_expr = f'<={semantic_info.major}.{semantic_info.minor}' if semantic_info.minor else f'<={semantic_info.major}'
         base_ref_spec = NpmSpec(spec_expr)
         base_ref = base_ref_spec.select(valid_versions)
 
-        if prerelease:
+        if semantic_info.prerelease:
             assert base_ref, 'Cannot checkout using prerelease until a repo is initialized.'
             prerelease_base_version = base_ref.next_patch()
-            base_ref = NpmSpec(f'>={str(prerelease_base_version)}-{prerelease}').select(valid_versions)
+            base_ref = NpmSpec(f'>={str(prerelease_base_version)}-{semantic_info.prerelease}').select(valid_versions)
 
         image_hash = tag_dict[str(base_ref)] if base_ref else default_image.image_hash
 
@@ -150,21 +140,21 @@ class SemanticCleanupTask(Task):
 
     def __init__(
       self,
-      repo_info: RepoInfo,
-      prerelease: str = None,
+      repo_dict: RepoInfoDict,
+      semantic_dict: SemanticInfoDict = {},
       remote_name: str = None,
       retain: int = 1,
       **kwargs
     ) -> None:
-        self.repo_info = repo_info
-        self.prerelease = prerelease
+        self.repo_dict = repo_dict
+        self.semantic_dict = semantic_dict
         self.remote_name = remote_name
         self.retain = retain
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_info', 'prerelease', 'remote_name', 'retain')
-    def run(self, repo_info: RepoInfo = None, prerelease: str = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
+    @defaults_from_attrs('repo_dict', 'semantic_dict', 'remote_name', 'retain')
+    def run(self, repo_dict: RepoInfoDict = None, semantic_dict: SemanticInfoDict = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
         """
 
         Args:
@@ -172,20 +162,13 @@ class SemanticCleanupTask(Task):
         Returns:
 
         """
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get('parameters', {}).copy(),
-            **prefect.context,
-        }
-        namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
-        repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
+        assert repo_dict, 'Must specify repo.'
+
+        repo_info = RepoInfo(**repo_dict)
+        semantic_info = SemanticInfo(**semantic_dict)
 
 
-        prerelease = format_with_default(prerelease, None, **formatting_kwargs)
-        remote_name = format_with_default(remote_name, None, **formatting_kwargs)
-
-
-        repo = Repository(namespace=namespace, repository=repository)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
         if remote_name:
             repo = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
 
@@ -197,8 +180,8 @@ class SemanticCleanupTask(Task):
 
         valid_versions = [version for version in version_list if version]
         non_prerelease_versions = [version for version in valid_versions if len(version.prerelease) == 0]
-        prerelease_versions = [version for version in valid_versions if prerelease and len(version.prerelease) > 0 and version.prerelease[0] == prerelease]
-        prune_candidates = prerelease_versions if prerelease else non_prerelease_versions
+        prerelease_versions = [version for version in valid_versions if semantic_info.prerelease and len(version.prerelease) > 0 and version.prerelease[0] == semantic_info.prerelease]
+        prune_candidates = prerelease_versions if semantic_info.prerelease else non_prerelease_versions
 
         total_candidates = len(prune_candidates)
         prune_count = total_candidates - retain
@@ -278,17 +261,17 @@ class CommitTask(Task):
 
     def __init__(
       self,
-      repo_info: RepoInfo,
+      repo_dict: RepoInfoDict,
       chunk_size: int = 10000,
       **kwargs
     ) -> None:
-        self.repo_info = repo_info
+        self.repo_dict = repo_dict
         self.chunk_size = chunk_size
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_info')
-    def run(self, repo_info: RepoInfo = None, comment: str = None, tags: List[str] = [], **kwargs: Any):
+    @defaults_from_attrs('repo_dict')
+    def run(self, repo_dict: RepoInfoDict = None, comment: str = None, tags: List[str] = [], **kwargs: Any):
         """
 
         Args:
@@ -296,15 +279,10 @@ class CommitTask(Task):
         Returns:
 
         """
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get('parameters', {}).copy(),
-            **prefect.context,
-        }
-        namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
-        repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
+        assert repo_dict, 'Must specify repo.'
+        repo_info = RepoInfo(**repo_dict)
 
-        repo = Repository(namespace=namespace, repository=repository)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
         new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
         for tag in tags:
             new_img.tag(tag)
@@ -337,21 +315,21 @@ class DataFrameToTableTask(Task):
 
     def __init__(
       self,
-      repo_info: RepoInfo,
+      repo_dict: RepoInfoDict,
       table: str = None,
       if_exists: str = 'replace',
       schema_check: bool = False,
       **kwargs
     ) -> None:
-        self.repo_info = repo_info
+        self.repo_dict = repo_dict
         self.table = table
         self.if_exists = if_exists
         self.schema_check = schema_check
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('table', 'if_exists', 'repo_info')
-    def run(self, params: DataFrameToTableParams, table: str = None, if_exists: str = None, repo_info: RepoInfo = None, **kwargs: Any):
+    @defaults_from_attrs('table', 'if_exists', 'repo_dict')
+    def run(self, params: DataFrameToTableParams, table: str = None, if_exists: str = None, repo_dict: RepoInfoDict = None, **kwargs: Any):
         """
 
         Args:
@@ -359,18 +337,13 @@ class DataFrameToTableTask(Task):
         Returns:
 
         """
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get('parameters', {}).copy(),
-            **prefect.context,
-        }
+        assert repo_dict, 'Must specify repo.'
+        repo_info = RepoInfo(**repo_dict)
 
-        namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
-        repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
-        table = (params.table or table).format(**formatting_kwargs)
+        table = params.table or table
         if_exists = params.if_exists or if_exists
 
-        repo = Repository(namespace=namespace, repository=repository)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
 
         df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
 
@@ -399,19 +372,17 @@ class SemanticBumpTask(Task):
 
     def __init__(
         self,
-        major: str = '1',
-        minor: str = '0',
+        semantic_dict: SemanticInfoDict = {'major': '1', 'minor': '0'},
         build: Tuple[str] = ("{date:%Y-%m-%dT%H}", "{date:%M}", "{flow_run_name}"),
         **kwargs
     ) -> None:
         self.build = build
-        self.major = major
-        self.minor = minor
+        self.semantic_dict = semantic_dict
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('major', 'minor', 'build')
-    def run(self, base_ref: Version, major: str = None, minor: str = None, build: Tuple[str] = None, **kwargs: Any) -> List[str]:
+    @defaults_from_attrs('semantic_dict', 'build')
+    def run(self, base_ref: Version, semantic_dict: SemanticInfoDict = None, build: Tuple[str] = None, **kwargs: Any) -> List[str]:
         """
 
         Args:
@@ -425,10 +396,11 @@ class SemanticBumpTask(Task):
             **prefect.context,
         }
 
-        major = format_with_default(major, '1', **formatting_kwargs)
-        minor = format_with_default(minor, '0', **formatting_kwargs)
 
-        next_version = base_ref.next_patch() if base_ref else Version(f'{major}.{minor}.0')
+        semantic_info = SemanticInfo(**semantic_dict)
+
+
+        next_version = base_ref.next_patch() if base_ref else Version(f'{semantic_info.major}.{semantic_info.minor}.0')
         is_prerelease = base_ref and len(base_ref.prerelease) >= 2
         if is_prerelease:
             prerelease, prerelease_count = base_ref.prerelease
@@ -479,17 +451,17 @@ class PushRepoTask(Task):
 
     def __init__(
       self,
-      repo_info: RepoInfo,
+      repo_dict: RepoInfoDict,
       remote_name: str = None,
       **kwargs
     ) -> None:
-        self.repo_info = repo_info
+        self.repo_dict = repo_dict
         self.remote_name = remote_name
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_info', 'remote_name')
-    def run(self, repo_info: RepoInfo = None, remote_name: str = None, **kwargs: Any) -> Tuple[str, Union[str, None]]:
+    @defaults_from_attrs('repo_dict', 'remote_name')
+    def run(self, repo_dict: RepoInfoDict = None, remote_name: str = None, **kwargs: Any) -> Tuple[str, Union[str, None]]:
         """
 
         Args:
@@ -497,21 +469,14 @@ class PushRepoTask(Task):
         Returns:
 
         """
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get('parameters', {}).copy(),
-            **prefect.context,
-        }
-        namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
-        repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
-
-        remote_name = format_with_default(remote_name, None, **formatting_kwargs)
+        assert repo_dict, 'Must specify repo.'
+        repo_info = RepoInfo(**repo_dict)
 
         if not remote_name:
             self.logger.warn('No remote_name specified. Not pushing.')
             return
 
-        repo = Repository(namespace=namespace, repository=repository)
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
         remote = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
         repo.push(
             remote,
