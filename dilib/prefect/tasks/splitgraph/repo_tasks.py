@@ -505,9 +505,11 @@ class PushRepoTask(Task):
         namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
 
-        remote_name = remote_name.format(**formatting_kwargs) if remote_name else None
+        remote_name = format_with_default(remote_name, None, **formatting_kwargs)
 
-        assert remote_name, 'Must specify a remote name to push'
+        if not remote_name:
+            self.logger.warn('No remote_name specified. Not pushing.')
+            return
 
         repo = Repository(namespace=namespace, repository=repository)
         remote = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
