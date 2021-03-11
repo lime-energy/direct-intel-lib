@@ -30,7 +30,7 @@ spec:
           - name: splitgraph
             mountPath: /var/splitgraph
         - name: sgr
-          image: splitgraph/engine:0.2.6
+          image: splitgraph/engine:0.2.8
           imagePullPolicy: Always
           ports:
           - name: postgres
