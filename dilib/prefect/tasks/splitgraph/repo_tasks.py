@@ -50,7 +50,7 @@ class SemanticCheckoutTask(Task):
       self,
       repo_info: RepoInfo,
       major: str = '1',
-      minor: str = '0',
+      minor: str = None,
       prerelease: str = None,
       remote_name: str = None,
       **kwargs
@@ -82,7 +82,7 @@ class SemanticCheckoutTask(Task):
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
 
         major = major.format(**formatting_kwargs) if major else '1'
-        minor = minor.format(**formatting_kwargs) if minor else '0'
+        minor = minor.format(**formatting_kwargs) if minor else None
         prerelease = prerelease.format(**formatting_kwargs) if prerelease else None
         remote_name = remote_name.format(**formatting_kwargs) if remote_name else None
 
@@ -149,24 +149,20 @@ class SemanticCleanupTask(Task):
     def __init__(
       self,
       repo_info: RepoInfo,
-      major: str = '1',
-      minor: str = '0',
       prerelease: str = None,
       remote_name: str = None,
       retain: int = 1,
       **kwargs
     ) -> None:
         self.repo_info = repo_info
-        self.major = major
-        self.minor = minor
         self.prerelease = prerelease
         self.remote_name = remote_name
         self.retain = retain
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_info', 'major', 'minor', 'prerelease', 'remote_name', 'retain')
-    def run(self, repo_info: RepoInfo = None, major: str = None, minor: str = None, prerelease: str = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
+    @defaults_from_attrs('repo_info', 'prerelease', 'remote_name', 'retain')
+    def run(self, repo_info: RepoInfo = None, prerelease: str = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
         """
 
         Args:
@@ -182,8 +178,7 @@ class SemanticCleanupTask(Task):
         namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
 
-        major = major.format(**formatting_kwargs) if major else '1'
-        minor = minor.format(**formatting_kwargs) if minor else '0'
+
         prerelease = prerelease.format(**formatting_kwargs) if prerelease else None
 
         repo = Repository(namespace=namespace, repository=repository)
@@ -245,8 +240,15 @@ class VersionToDateTask(Task):
 
         date_str = version.build[0]
 
-        return pendulum.parse(date_str)
+        date = pendulum.parse(date_str)
+        if len(version.build) < 2:
+            return date
 
+        try:
+            minutes = version.build[1]
+            return date.add(minutes=int(minutes))
+        except Exception as ex:
+            return date
 
 
 #
@@ -392,16 +394,20 @@ class SemanticBumpTask(Task):
     """
 
     def __init__(
-      self,
-      build: Tuple[str] = ("{date:%Y-%m-%dT%H}", "{flow_run_name}"),
-      **kwargs
+        self,
+        major: str = '1',
+        minor: str = '0',
+        build: Tuple[str] = ("{date:%Y-%m-%dT%H}", "{date:%M}", "{flow_run_name}"),
+        **kwargs
     ) -> None:
         self.build = build
+        self.major = major
+        self.minor = minor
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('build')
-    def run(self, base_ref: Version, build: Tuple[str] = None, **kwargs: Any) -> List[str]:
+    @defaults_from_attrs('major', 'minor', 'build')
+    def run(self, base_ref: Version, major: str = None, minor: str = None, build: Tuple[str] = None, **kwargs: Any) -> List[str]:
         """
 
         Args:
@@ -415,7 +421,7 @@ class SemanticBumpTask(Task):
             **prefect.context,
         }
 
-        next_version = base_ref.next_patch() if base_ref else Version('1.0.0')
+        next_version = base_ref.next_patch() if base_ref else Version(f'{major}.{minor}.0')
         is_prerelease = base_ref and len(base_ref.prerelease) >= 2
         if is_prerelease:
             prerelease, prerelease_count = base_ref.prerelease

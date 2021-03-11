@@ -78,6 +78,8 @@ with Flow('sample') as flow:
     commit_done = commit(tags=sematic_bump(base_ref), upstream_tasks=[load_done])
     pushed = push(upstream_tasks=[commit_done])
     sematic_cleanup(retain=3, upstream_tasks=[pushed])
+
+
 class RepoTasksTest(unittest.TestCase):
     repo: Repository
     def setUp(self):
@@ -94,7 +96,7 @@ class RepoTasksTest(unittest.TestCase):
     def test_can_run_sample_flow(self):
 
         with raise_on_exception():
-            with prefect.context(today='20210308', task_run_id='foo1id'):
+            with prefect.context(date=datetime.utcnow(), flow_run_name='foo1id'):
                 state = flow.run()
 
                 for task in flow.tasks:
@@ -140,7 +142,7 @@ class RepoTasksTest(unittest.TestCase):
             self.assertTrue(state.is_failed(), 'A repo must first be initialized with a non-prerelease tag.')
 
     def test_can_checkout_already_tagged_repo(self):
-        self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory'])
+        self.tag_repo(['1', '1.0', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish'])
         repo_info = RepoInfo(namespace="abc", repository="1234")
 
         checkout = SemanticCheckoutTask(
@@ -158,7 +160,50 @@ class RepoTasksTest(unittest.TestCase):
                     self.fail()
 
                 version = state.result
-                self.assertEqual(version, Version('1.0.0+20200228.blue-ivory'))
+                self.assertEqual(version, Version('1.0.1+20200228.silver-fish'))
+
+   # In this case, we expect the matching major with the greatest minor
+    def test_can_checkout_with_no_minor_specified(self):
+        self.tag_repo(['1', '1.0', '1.1', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish', '1.1.1+20200228.blue-moon'])
+        repo_info = RepoInfo(namespace="abc", repository="1234")
+
+        checkout = SemanticCheckoutTask(
+            repo_info=repo_info,
+            major="1",
+        )
+        runner = TaskRunner(task=checkout)
+
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run()
+
+                if state.is_failed():
+                    print(state)
+                    self.fail()
+
+                version = state.result
+                self.assertEqual(version, Version('1.1.1+20200228.blue-moon'))
+
+    def test_can_checkout_with_new_major(self):
+        self.tag_repo(['1', '1.0', '1.1', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish', '1.1.1+20200228.blue-moon'])
+        repo_info = RepoInfo(namespace="abc", repository="1234")
+
+        checkout = SemanticCheckoutTask(
+            repo_info=repo_info,
+            major="2",
+        )
+        runner = TaskRunner(task=checkout)
+
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run()
+
+                if state.is_failed():
+                    print(state)
+                    self.fail()
+
+                version = state.result
+                self.assertEqual(version, Version('1.1.1+20200228.blue-moon'))
 
     def test_can_clone_repo_with_patches(self):
         self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory', '1.0.1', '1.0.1+20200307.pink-bear'])
@@ -328,7 +373,7 @@ class RepoTasksTest(unittest.TestCase):
                     self.fail()
 
 
-                self.assertEqual(state.result, ['1', '1.0', f'1.0.1+{date:%Y-%m-%dT%H}.{flow_run_name}'])
+                self.assertEqual(state.result, ['1', '1.0', f'1.0.1+{date:%Y-%m-%dT%H}.{date:%M}.{flow_run_name}'])
 
     def test_can_semantic_bump_init_repo(self):
 
@@ -349,7 +394,28 @@ class RepoTasksTest(unittest.TestCase):
                     self.fail()
 
 
-                self.assertEqual(state.result, ['1', '1.0', f'1.0.0+{date:%Y-%m-%dT%H}.{flow_run_name}'])
+                self.assertEqual(state.result, ['1', '1.0', f'1.0.0+{date:%Y-%m-%dT%H}.{date:%M}.{flow_run_name}'])
+
+    def test_can_semantic_bump_new_major(self):
+
+        semantic_bump = SemanticBumpTask(major='2', minor='1')
+
+        runner = TaskRunner(task=semantic_bump)
+        edge = Edge(Task(), semantic_bump, key='base_ref')
+        upstream_state = Success(result=ConstantResult(value=None))
+
+        date = datetime.utcnow()
+        flow_run_name = 'testflow1'
+        with raise_on_exception():
+            with prefect.context(date=date, flow_run_name=flow_run_name):
+                state = runner.run(upstream_states={edge: upstream_state})
+
+                if state.is_failed():
+                    print(state)
+                    self.fail()
+
+
+                self.assertEqual(state.result, ['2', '2.1', f'2.1.0+{date:%Y-%m-%dT%H}.{date:%M}.{flow_run_name}'])
 
     def test_can_semantic_bump_prerelease(self):
 
@@ -370,7 +436,7 @@ class RepoTasksTest(unittest.TestCase):
                     self.fail()
 
 
-                self.assertEqual(state.result, ['1-hourly', '1.0-hourly', f'1.0.1-hourly.5+{date:%Y-%m-%dT%H}.{flow_run_name}'])
+                self.assertEqual(state.result, ['1-hourly', '1.0-hourly', f'1.0.1-hourly.5+{date:%Y-%m-%dT%H}.{date:%M}.{flow_run_name}'])
 
     def test_can_push(self):
         repo_info = RepoInfo(namespace="abc", repository="1234")
