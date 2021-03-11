@@ -51,7 +51,7 @@ class SemanticCheckoutTask(Task):
 
     def __init__(
       self,
-      repo_dict: RepoInfoDict,
+      repo_dict: RepoInfoDict = None,
       semantic_dict: SemanticInfoDict = {'major': '1'},
       remote_name: str = None,
       **kwargs
@@ -140,7 +140,7 @@ class SemanticCleanupTask(Task):
 
     def __init__(
       self,
-      repo_dict: RepoInfoDict,
+      repo_dict: RepoInfoDict = None,
       semantic_dict: SemanticInfoDict = {},
       remote_name: str = None,
       retain: int = 1,
@@ -261,7 +261,7 @@ class CommitTask(Task):
 
     def __init__(
       self,
-      repo_dict: RepoInfoDict,
+      repo_dict: RepoInfoDict = None,
       chunk_size: int = 10000,
       **kwargs
     ) -> None:
@@ -315,7 +315,7 @@ class DataFrameToTableTask(Task):
 
     def __init__(
       self,
-      repo_dict: RepoInfoDict,
+      repo_dict: RepoInfoDict = None,
       table: str = None,
       if_exists: str = 'replace',
       schema_check: bool = False,
@@ -451,7 +451,7 @@ class PushRepoTask(Task):
 
     def __init__(
       self,
-      repo_dict: RepoInfoDict,
+      repo_dict: RepoInfoDict = None,
       remote_name: str = None,
       **kwargs
     ) -> None:
