@@ -1,9 +1,10 @@
 from dataclasses import dataclass
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, NamedTuple, Tuple, TypedDict, Union
 
 import pandas as pd
+import pendulum
 import prefect
-from dilib.splitgraph import SchemaValidationError, RepoInfo, parse_repo
+from dilib.splitgraph import RepoInfo, SchemaValidationError, parse_repo
 from prefect import Task
 from prefect.utilities.collections import DotDict
 from prefect.utilities.tasks import defaults_from_attrs
@@ -105,7 +106,7 @@ class SemanticCheckoutTask(Task):
 
         tag_dict = dict((tag, image_hash) for (image_hash, tag) in image_tags if image_hash) #reverse keys
         default_image = repo.images[tag_dict['latest']] if 'lastest' in tag_dict else repo.head
-        version_list = [parse_tag(tag) for tag in tag_dict.keys()]
+        version_list = [parse_tag(tag) for tag in sorted(list(tag_dict.keys()), key=len, reverse=True)]
 
         valid_versions = [version for version in version_list if version]
 
@@ -123,6 +124,130 @@ class SemanticCheckoutTask(Task):
         image = repo.images[image_hash]
         image.checkout(force=True)
         return base_ref
+
+class SemanticCleanupTask(Task):
+    """
+    Remove old tags. The retain parameter prevents this number of the newest tags from being removed.
+
+    Args:
+
+    Raises:
+
+
+    Examples:
+
+     ```python
+    >>> SemanticCleanupTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='0', retain=3) #Retain 3 most recent tags
+
+    >>> SemanticCheckoutTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='1', prerelease='hourly', retain=48) #Retain 48 most recent hourly tags
+
+    ```
+
+    """
+
+
+    def __init__(
+      self,
+      repo_info: RepoInfo,
+      major: str = '1',
+      minor: str = '0',
+      prerelease: str = None,
+      remote_name: str = None,
+      retain: int = 1,
+      **kwargs
+    ) -> None:
+        self.repo_info = repo_info
+        self.major = major
+        self.minor = minor
+        self.prerelease = prerelease
+        self.remote_name = remote_name
+        self.retain = retain
+        super().__init__(**kwargs)
+
+
+    @defaults_from_attrs('repo_info', 'major', 'minor', 'prerelease', 'remote_name', 'retain')
+    def run(self, repo_info: RepoInfo = None, major: str = None, minor: str = None, prerelease: str = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
+        """
+
+        Args:
+
+        Returns:
+
+        """
+        formatting_kwargs = {
+            **kwargs,
+            **prefect.context.get('parameters', {}).copy(),
+            **prefect.context,
+        }
+        namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
+        repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
+
+        major = major.format(**formatting_kwargs) if major else '1'
+        minor = minor.format(**formatting_kwargs) if minor else '0'
+        prerelease = prerelease.format(**formatting_kwargs) if prerelease else None
+
+        repo = Repository(namespace=namespace, repository=repository)
+        if remote_name:
+            repo = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
+
+        image_tags = repo.get_all_hashes_tags()
+
+        tag_dict = dict((tag, image_hash) for (image_hash, tag) in image_tags if image_hash) #reverse keys
+
+        version_list = [parse_tag(tag) for tag in sorted(list(tag_dict.keys()), key=len, reverse=True)]
+
+        valid_versions = [version for version in version_list if version]
+        non_prerelease_versions = [version for version in valid_versions if len(version.prerelease) == 0]
+        prerelease_versions = [version for version in valid_versions if prerelease and len(version.prerelease) > 0 and version.prerelease[0] == prerelease]
+        prune_candidates = prerelease_versions if prerelease else non_prerelease_versions
+
+        total_candidates = len(prune_candidates)
+        prune_count = total_candidates - retain
+        prune_list = sorted(prune_candidates)[:prune_count]
+
+        for version in prune_list:
+            tag = str(version)
+            image_hash = tag_dict[tag]
+            image = repo.images[image_hash]
+            image.delete_tag(tag)
+
+
+class VersionToDateTask(Task):
+    """
+    Parses the date from a version build meta data
+
+    Args:
+
+    Raises:
+
+
+    Examples:
+
+
+    """
+    def __init__(self, **kwargs) -> None:
+        super().__init__(**kwargs)
+
+    def run(self, version: Version, **kwargs: Any) -> Union[Version, None]:
+        """
+
+        Args:
+
+        Returns:
+
+        """
+
+        if not version:
+            return None
+
+        if len(version.build) < 1:
+            return None
+
+        date_str = version.build[0]
+
+        return pendulum.parse(date_str)
+
+
 
 #
 class CommitTask(Task):
@@ -178,15 +303,12 @@ class CommitTask(Task):
         for tag in tags:
             new_img.tag(tag)
         repo.engine.commit()
-        return None
-
 
 @dataclass(frozen=True)
 class DataFrameToTableParams:
     data_frame: pd.DataFrame
     table: str = None
     if_exists: str = None
-
 class DataFrameToTableTask(Task):
     """
     Use pandas dataframe to import data to table.
@@ -199,7 +321,7 @@ class DataFrameToTableTask(Task):
     Examples:
 
      ```python
-    >>> DataFrameToTableTask(RepoInfo(namespace='org1', repository='interesting_data',  major='1', minor='0')) #None if no version is found
+    >>> DataFrameToTableTask(RepoInfo(namespace='org1', repository='interesting_data'))
     None
 
     ```
@@ -236,14 +358,16 @@ class DataFrameToTableTask(Task):
             **prefect.context.get('parameters', {}).copy(),
             **prefect.context,
         }
+
         namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
         table = (params.table or table).format(**formatting_kwargs)
+        if_exists = params.if_exists or if_exists
 
         repo = Repository(namespace=namespace, repository=repository)
 
-        df_to_table(params.data_frame, repository=repo, table=table, if_exists=params.if_exists or if_exists)
-        return None
+        df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
+
 
 
 class SemanticBumpTask(Task):
@@ -258,8 +382,10 @@ class SemanticBumpTask(Task):
     Examples:
 
      ```python
-    >>> SemanticBumpTask(RepoInfo(namespace='org1', repository='interesting_data')) #None if no version is found
-    None
+    >>> bump=SemanticBumpTask(build=('meta1', 'meta2'))
+    >>> tags=bump(base_ref=Version('1.0.0'))
+    Result(value=['1', '1.0', '1.0.1+meta1.meta2'])
+
 
     ```
 
@@ -267,7 +393,7 @@ class SemanticBumpTask(Task):
 
     def __init__(
       self,
-      build: Tuple[str] = ("{today}", "{task_run_id}"),
+      build: Tuple[str] = ("{date:%Y-%m-%dT%H}", "{flow_run_name}"),
       **kwargs
     ) -> None:
         self.build = build
