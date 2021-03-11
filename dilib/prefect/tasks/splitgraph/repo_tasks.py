@@ -63,7 +63,7 @@ class SemanticCheckoutTask(Task):
 
 
     @defaults_from_attrs('repo_info', 'major', 'minor', 'prerelease', 'remote_name')
-    def run(self, repo_info: RepoInfo = None, major: str = None, minor: str = None, prerelease: str = None, remote_name: str = None, **kwargs: Any) -> Tuple[str, Union[str, None]]:
+    def run(self, repo_info: RepoInfo = None, major: str = None, minor: str = None, prerelease: str = None, remote_name: str = None, **kwargs: Any) -> Union[Version, None]:
         """
 
         Args:
@@ -122,7 +122,7 @@ class SemanticCheckoutTask(Task):
 
         image = repo.images[image_hash]
         image.checkout(force=True)
-        return (image_hash, base_ref)
+        return base_ref
 
 #
 class CommitTask(Task):

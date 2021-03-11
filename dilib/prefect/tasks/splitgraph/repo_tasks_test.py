@@ -72,7 +72,7 @@ class RepoTasksTest(unittest.TestCase):
                     self.fail()
 
 
-                image_hash, version = state.result
+                version = state.result
                 self.assertEqual(version, None)
 
     def test_checkout_new_prerelease_fails(self):
@@ -107,7 +107,7 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
-                image_hash, version = state.result
+                version = state.result
                 self.assertEqual(version, Version('1.0.0'))
 
     def test_can_clone_repo_with_patches(self):
@@ -128,7 +128,7 @@ class RepoTasksTest(unittest.TestCase):
                 print(state)
                 self.fail()
 
-            image_hash, version = state.result
+            version = state.result
             self.assertEqual(version, Version('1.0.1'))
 
 
@@ -157,7 +157,7 @@ class RepoTasksTest(unittest.TestCase):
                 print(state)
                 self.fail()
 
-            image_hash, version = state.result
+            version = state.result
             self.assertEqual(version, Version('1.0.2-hourly.2+20200301.green-monster'))
 
     def test_can_commit(self):
