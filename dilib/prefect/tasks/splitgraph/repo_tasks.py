@@ -222,7 +222,7 @@ class DataFrameToTableTask(Task):
 
 
     @defaults_from_attrs('table', 'if_exists', 'repo_info')
-    def run(self, input: DataFrameToTableParams, table: str = None, if_exists: str = None, repo_info: RepoInfo = None, **kwargs: Any):
+    def run(self, params: DataFrameToTableParams, table: str = None, if_exists: str = None, repo_info: RepoInfo = None, **kwargs: Any):
         """
 
         Args:
@@ -237,11 +237,11 @@ class DataFrameToTableTask(Task):
         }
         namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
-        table = (input.table or table).format(**formatting_kwargs)
+        table = (params.table or table).format(**formatting_kwargs)
 
         repo = Repository(namespace=namespace, repository=repository)
 
-        df_to_table(input.data_frame, repository=repo, table=table, if_exists=input.if_exists or if_exists)
+        df_to_table(params.data_frame, repository=repo, table=table, if_exists=params.if_exists or if_exists)
 
 
 class SemanticBumpTask(Task):
@@ -256,7 +256,7 @@ class SemanticBumpTask(Task):
     Examples:
 
      ```python
-    >>> SemanticBumpTask(RepoInfo(namespace='org1', repository='interesting_data',  major='1', minor='0')) #None if no version is found
+    >>> SemanticBumpTask(RepoInfo(namespace='org1', repository='interesting_data')) #None if no version is found
     None
 
     ```
