@@ -209,7 +209,7 @@ class DataFrameToTableTask(Task):
     def __init__(
       self,
       repo_info: RepoInfo,
-      table: str,
+      table: str = None,
       if_exists: str = 'replace',
       schema_check: bool = False,
       **kwargs
