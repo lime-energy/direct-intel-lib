@@ -76,8 +76,8 @@ with Flow('sample') as flow:
     # load_done = df_to_table_task(fake_extract(1), upstream_tasks=[base_ref])
     load_done = df_to_table_task.map(params=extract_results, upstream_tasks=[unmapped(base_ref)])
     commit_done = commit(tags=sematic_bump(base_ref), upstream_tasks=[load_done])
-    # sematic_cleanup(retain=3)
-    push(upstream_tasks=[commit_done])
+    pushed = push(upstream_tasks=[commit_done])
+    sematic_cleanup(retain=3, upstream_tasks=[pushed])
 class RepoTasksTest(unittest.TestCase):
     repo: Repository
     def setUp(self):
