@@ -225,7 +225,7 @@ class RepoTasksTest(unittest.TestCase):
         )
 
         runner = TaskRunner(task=df_to_table)
-        df_edge = Edge(Task(), df_to_table, key='input')
+        df_edge = Edge(Task(), df_to_table, key='params')
         upstream_state = Success(result=ConstantResult(value=DataFrameToTableParams(fake_data(10))))
 
         with prefect.context():

@@ -178,6 +178,7 @@ class CommitTask(Task):
         for tag in tags:
             new_img.tag(tag)
         repo.engine.commit()
+        return None
 
 
 @dataclass(frozen=True)
@@ -242,6 +243,7 @@ class DataFrameToTableTask(Task):
         repo = Repository(namespace=namespace, repository=repository)
 
         df_to_table(params.data_frame, repository=repo, table=table, if_exists=params.if_exists or if_exists)
+        return None
 
 
 class SemanticBumpTask(Task):
