@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import Any, Dict
 
 import pandas as pd
-from dilib.splitgraph import SchemaValidationError, parse_repo
+from dilib.splitgraph import SchemaValidationError, parse_repo, RepoInfo
 from pandas_schema import Schema
 from prefect import Task, task
 from prefect.engine.result import Result
@@ -50,7 +50,6 @@ class SplitgraphResult(Result):
         env: Dict[str, Any] = None,
         auto_push: bool = True,
         layer_query: bool = False,
-        remote_name: str = 'bedrock',
         schema: Schema = None,
         **kwargs: Any
     ) -> None:
@@ -59,31 +58,26 @@ class SplitgraphResult(Result):
         self.comment = comment
         self.auto_push = auto_push
         self.layer_query = layer_query
-        self.remote_name = remote_name
         self.schema = schema
         
         super().__init__(**kwargs)
     
    
     @property
-    def repo_info(self) -> DotDict:
-        return DotDict(parse_repo(self.location))
+    def repo_info(self) -> RepoInfo:
+        return parse_repo(self.location)
     @property
     def default_location(self) -> str:
         location = "{flow_name}/{task_name}:{tag or uuid.uuid4()}/prefect_result"
         return location
-
-
-    def to_repo_location(self) -> str:
-        return "{namespace}/{repo}:{tag}".format(**self.repo_info)
 
     def read(self, location: str) -> Result:
         new = self.copy()
         new.location = location
         try:            
         
-            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo)
-            remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
+            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repository)
+            remote = Repository.from_template(repo, engine=get_engine(new.repo_info.remote_name, autocommit=True))
 
             cloned_repo=clone(
                 remote,
@@ -137,10 +131,10 @@ class SplitgraphResult(Result):
         new = self.format(**kwargs)
         new.value = value_
 
-        repo_info = DotDict(parse_repo(new.location))
+        repo_info = parse_repo(new.location)
     
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
-        remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+        remote = Repository.from_template(repo, engine=get_engine(repo_info.remote_name, autocommit=True))
        
         assert isinstance(value_, pd.DataFrame)
        
@@ -198,9 +192,9 @@ class SplitgraphResult(Result):
         """
 
         try:
-            repo_info = DotDict(parse_repo(location))
-            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repo)
-            remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
+            repo_info = parse_repo(location)
+            repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+            remote = Repository.from_template(repo, engine=get_engine(repo_info.remote_name, autocommit=True))
  
             table_exists_at(remote, repo_info.table)
             return self.client.get_object(Bucket=self.bucket, Key=location.format(**kwargs))

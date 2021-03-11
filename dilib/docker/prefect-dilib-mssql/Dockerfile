@@ -15,3 +15,5 @@ COPY /mssql_deps_bin.pex /mssql_deps_bin.pex
 RUN mkdir flow_base
 RUN unzip /mssql_deps_bin.pex -d /flow_base/
 RUN rm /mssql_deps_bin.pex
+
+ADD .sgconfig /var/splitgraph/.sgconfig

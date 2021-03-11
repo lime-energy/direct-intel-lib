@@ -12,7 +12,6 @@ python_library(
 python_test(
     name = "tests",
     srcs = glob(["**/*_test.py"]),
-    site = True,
     deps = [
         ":lib",
         ],

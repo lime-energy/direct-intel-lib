@@ -11,7 +11,7 @@ from prefect import Flow, task
 from prefect.engine import TaskRunner
 
 logging.info('test')
-result=SplitgraphResult(location="test1/test1:{today_nodash}/test_abc", remote_name='bedrock', auto_init_repo=True)
+result=SplitgraphResult(location="sgr://bedrock/test1/test1?tag={today_nodash}&table=test_abc", auto_init_repo=True)
 @task(result=result, checkpoint=True)
 def test_task():
     index = pd.date_range("1/1/2000", periods=8)
