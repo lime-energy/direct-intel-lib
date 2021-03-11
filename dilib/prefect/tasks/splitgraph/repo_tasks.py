@@ -1,9 +1,11 @@
+
 from dataclasses import dataclass
 from typing import Any, Dict, List, NamedTuple, Tuple, TypedDict, Union
 
 import pandas as pd
 import pendulum
 import prefect
+from dilib.format import format_with_default
 from dilib.splitgraph import RepoInfo, SchemaValidationError, parse_repo
 from prefect import Task
 from prefect.utilities.collections import DotDict
@@ -81,10 +83,10 @@ class SemanticCheckoutTask(Task):
         namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
 
-        major = major.format(**formatting_kwargs) if major else '1'
-        minor = minor.format(**formatting_kwargs) if minor else None
-        prerelease = prerelease.format(**formatting_kwargs) if prerelease else None
-        remote_name = remote_name.format(**formatting_kwargs) if remote_name else None
+        major = format_with_default(major, '1', **formatting_kwargs)
+        minor = format_with_default(minor, None, **formatting_kwargs)
+        prerelease = format_with_default(prerelease, None, **formatting_kwargs)
+        remote_name = format_with_default(remote_name, None, **formatting_kwargs)
 
         repo = Repository(namespace=namespace, repository=repository)
 
@@ -179,7 +181,9 @@ class SemanticCleanupTask(Task):
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
 
 
-        prerelease = prerelease.format(**formatting_kwargs) if prerelease else None
+        prerelease = format_with_default(prerelease, None, **formatting_kwargs)
+        remote_name = format_with_default(remote_name, None, **formatting_kwargs)
+
 
         repo = Repository(namespace=namespace, repository=repository)
         if remote_name:
@@ -420,6 +424,9 @@ class SemanticBumpTask(Task):
             **prefect.context.get('parameters', {}).copy(),
             **prefect.context,
         }
+
+        major = format_with_default(major, '1', **formatting_kwargs)
+        minor = format_with_default(minor, '0', **formatting_kwargs)
 
         next_version = base_ref.next_patch() if base_ref else Version(f'{major}.{minor}.0')
         is_prerelease = base_ref and len(base_ref.prerelease) >= 2
