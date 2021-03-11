@@ -237,11 +237,11 @@ class DataFrameToTableTask(Task):
         }
         namespace = (repo_info.namespace or self.repo_info.namespace).format(**formatting_kwargs)
         repository = (repo_info.repository or self.repo_info.repository).format(**formatting_kwargs)
-        table = table.format(**formatting_kwargs)
+        table = (input.table or table).format(**formatting_kwargs)
 
         repo = Repository(namespace=namespace, repository=repository)
 
-        df_to_table(input.data_frame, repository=repo, table=input.table or table, if_exists=input.if_exists or if_exists)
+        df_to_table(input.data_frame, repository=repo, table=table, if_exists=input.if_exists or if_exists)
 
 
 class SemanticBumpTask(Task):
