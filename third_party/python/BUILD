@@ -288,7 +288,7 @@ pip_library(
 
 pip_library(
   name = "splitgraph",
-  version = "0.2.8",
+  version = "0.2.7",
   deps = [
     ":psycopg2-binary",
     ":tqdm",
