@@ -35,7 +35,7 @@ pip_library(
 pip_library(
   name = "prefect",
   package_name = "prefect[aws,sql_server]",
-  version = "0.14.9",
+  version = "0.14.12",
   deps = [
     ":toml",
     ":python-box",

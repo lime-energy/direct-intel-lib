@@ -37,19 +37,17 @@ class SplitgraphFetch(Task):
       repo_dict: RepoInfoDict = None,
       schema: Schema = None,
       layer_query: bool = False,
-      remote_name: str = None,
       **kwargs
     ) -> None:
         self.repo_dict = repo_dict
         self.query = query
         self.schema = schema
         self.layer_query = layer_query
-        self.remote_name = remote_name
         
         super().__init__(**kwargs)
 
-    @defaults_from_attrs('repo_dict', 'query', 'remote_name')
-    def run(self, repo_dict: RepoInfoDict = None, query: str = None, remote_name: str = None, **kwargs: Any):
+    @defaults_from_attrs('repo_dict', 'query')
+    def run(self, repo_dict: RepoInfoDict = None, query: str = None, **kwargs: Any):
         """  
 
         Args:
