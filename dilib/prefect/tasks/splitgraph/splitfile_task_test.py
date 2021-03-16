@@ -13,7 +13,10 @@ class SplitfileTaskTest(unittest.TestCase):
     def test_can_build_splitfile(self):
         splitfile = pkgutil.get_data(__package__, "example.splitfile").decode("utf-8")
         splitfile_task = SplitfileTask(
-            uri="integration-tests/splitfile-test:{today_nodash}/table", 
+            repo_dict=dict(
+                namespace='integration-tests',
+                repository='splitfile-test'
+            ),
             splitfile_commands=splitfile,
         ) 
         runner = TaskRunner(task=splitfile_task)

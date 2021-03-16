@@ -12,7 +12,8 @@ from dilib.prefect.tasks.splitgraph import (CommitTask, DataFrameToTableParams,
                                             SemanticBumpTask,
                                             SemanticCheckoutTask,
                                             SemanticCleanupTask,
-                                            VersionToDateTask)
+                                            semantic_operation,
+                                            VersionToDateTask, Workspace)
 from dilib.splitgraph import RepoInfoDict
 from prefect import Flow, Parameter, Task, apply_map, task
 from prefect.core import Edge
@@ -47,8 +48,8 @@ def build_repo():
     return repo
 
 @task
-def inspect_version(v: Version):
-    print(str(v))
+def say_something(msg: str):
+    print(msg)
 @task
 def fake_extract(periods: int) -> DataFrameToTableParams:
     return DataFrameToTableParams(
@@ -59,25 +60,31 @@ def fake_extract(periods: int) -> DataFrameToTableParams:
 
 remote_name='bedrock'
 repo_dict = RepoInfoDict(namespace="unittest", repository="unittest")
-checkout = SemanticCheckoutTask(repo_dict=repo_dict, remote_name=remote_name)
-df_to_table_task = DataFrameToTableTask(repo_dict=repo_dict)
-commit = CommitTask(repo_dict=repo_dict)
-sematic_bump = SemanticBumpTask()
-sematic_cleanup = SemanticCleanupTask(repo_dict=repo_dict, remote_name=remote_name)
-push = PushRepoTask(repo_dict=repo_dict, remote_name=remote_name)
+
+df_to_table_task = DataFrameToTableTask()
 
 
 with Flow('sample') as flow:
-    base_ref = checkout()
-    inspect_version(base_ref)
     extract_results = fake_extract.map(
         periods=[1,2,3],
     )
-    # load_done = df_to_table_task(fake_extract(1), upstream_tasks=[base_ref])
-    load_done = df_to_table_task.map(params=extract_results, upstream_tasks=[unmapped(base_ref)])
-    commit_done = commit(tags=sematic_bump(base_ref), upstream_tasks=[load_done])
-    pushed = push(upstream_tasks=[commit_done])
-    sematic_cleanup(retain=3, upstream_tasks=[pushed])
+
+    with semantic_operation(
+        flow=flow,
+        repo_dict=repo_dict, 
+        semantic_dict=Parameter('semantic_dict'),
+        remote_name=Parameter('remote_name')
+    ) as op:
+        # load_done = df_to_table_task(fake_extract(1), upstream_tasks=[base_ref])
+        workspace = op.workspace
+        load_done = df_to_table_task.map(
+            params=extract_results,
+            repo_dict=unmapped(workspace['repo_dict'])
+        )
+        say_something('after_load', upstream_tasks=[load_done])
+    
+   
+    say_something('after with', upstream_tasks=[op.push])
 
 
 class RepoTasksTest(unittest.TestCase):
@@ -98,8 +105,13 @@ class RepoTasksTest(unittest.TestCase):
 
         with raise_on_exception():
             with prefect.context(date=datetime.utcnow(), flow_run_name='foo1id'):
-                state = flow.run()
-
+                state = flow.run(
+                    parameters=dict(
+                        remote_name=remote_name,
+                        semantic_dict=dict(major='1', minor='0', prerelease=None),
+                    )
+                )
+              
                 for task in flow.tasks:
                     print(f'{task.name} - {state.result[task]} - {state.result[task]._result.value}')
 
@@ -125,8 +137,8 @@ class RepoTasksTest(unittest.TestCase):
                     self.fail()
 
 
-                version = state.result
-                self.assertEqual(version, None)
+                workspace = state.result
+                self.assertEqual(workspace['version'], None)
 
     def test_checkout_new_prerelease_fails(self):
         repo_dict = RepoInfoDict(namespace="abc", repository="1234")
@@ -159,8 +171,8 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
-                version = state.result
-                self.assertEqual(version, Version('1.0.1+20200228.silver-fish'))
+                workspace = state.result
+                self.assertEqual(workspace['version'], Version('1.0.1+20200228.silver-fish'))
 
    # In this case, we expect the matching major with the greatest minor
     def test_can_checkout_with_no_minor_specified(self):
@@ -181,8 +193,8 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
-                version = state.result
-                self.assertEqual(version, Version('1.1.1+20200228.blue-moon'))
+                workspace = state.result
+                self.assertEqual(workspace['version'], Version('1.1.1+20200228.blue-moon'))
 
     def test_can_checkout_with_new_major(self):
         self.tag_repo(['1', '1.0', '1.1', '1.0.0+20200228.blue-ivory', '1.0.1+20200228.silver-fish', '1.1.1+20200228.blue-moon'])
@@ -202,8 +214,8 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
-                version = state.result
-                self.assertEqual(version, Version('1.1.1+20200228.blue-moon'))
+                workspace = state.result
+                self.assertEqual(workspace['version'], Version('1.1.1+20200228.blue-moon'))
 
     def test_can_clone_repo_with_patches(self):
         self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory', '1.0.1', '1.0.1+20200307.pink-bear'])
@@ -223,8 +235,8 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
-                version = state.result
-                self.assertEqual(version, Version('1.0.1+20200307.pink-bear'))
+                workspace = state.result
+                self.assertEqual(workspace['version'], Version('1.0.1+20200307.pink-bear'))
 
 
     def test_can_clone_with_hourly_prerelease_tags(self):
@@ -251,8 +263,8 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
-                version = state.result
-                self.assertEqual(version, Version('1.0.2-hourly.2+20200301.green-monster'))
+                workspace = state.result
+                self.assertEqual(workspace['version'], Version('1.0.2-hourly.2+20200301.green-monster'))
 
     def test_can_commit(self):
         repo_dict = RepoInfoDict(namespace="abc", repository="1234")
@@ -264,15 +276,14 @@ class RepoTasksTest(unittest.TestCase):
         commit = CommitTask(
             repo_dict=repo_dict,
         )
-        checkout.run()
+        workspace = checkout.run()
         df_to_table(fake_data(10), repository=self.repo, table="unit_test", if_exists='replace')
 
         runner = TaskRunner(task=commit)
-
-
         with raise_on_exception():
             with prefect.context():
                 state = runner.run()
+
 
                 if state.is_failed():
                     print(state)
@@ -290,17 +301,18 @@ class RepoTasksTest(unittest.TestCase):
         commit = CommitTask(
             repo_dict=repo_dict,
         )
-        checkout.run()
+        workspace = checkout.run()
         df_to_table(fake_data(10), repository=self.repo, table="unit_test", if_exists='replace')
 
 
         runner = TaskRunner(task=commit)
-        upstream_edge = Edge(Task(), commit, key='tags')
+        tags_edge = Edge(Task(), commit, key='tags')
         tag_state = Success(result=ConstantResult(value=['foo', 'bar', 'tag1_w_upstream']))
+    
 
         with raise_on_exception():
             with prefect.context():
-                state = runner.run(upstream_states={upstream_edge: tag_state})
+                state = runner.run(upstream_states={tags_edge: tag_state})
 
                 if state.is_failed():
                     print(state)
@@ -316,7 +328,7 @@ class RepoTasksTest(unittest.TestCase):
         checkout = SemanticCheckoutTask(
             repo_dict=repo_dict,
         )
-        checkout.run()
+        workspace = checkout.run()
         df_to_table = DataFrameToTableTask(
             repo_dict=repo_dict,
         )
@@ -400,7 +412,7 @@ class RepoTasksTest(unittest.TestCase):
     def test_can_semantic_bump_new_major(self):
 
         semantic_bump = SemanticBumpTask(
-            semantic_dict={'major': '2', 'minor': '1'},
+            initial_version='2.1.0',
         )
 
         runner = TaskRunner(task=semantic_bump)

@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 import prefect
-from dilib.splitgraph import SchemaValidationError, parse_repo
+from dilib.splitgraph import SchemaValidationError, RepoInfo, RepoInfoDict
 from prefect import Task
 from prefect.utilities.collections import DotDict
 from prefect.utilities.tasks import defaults_from_attrs
@@ -30,24 +30,21 @@ class SplitfileTask(Task):
     """
 
     def __init__(
-      self,
-      uri: str,
-      splitfile_commands: str,
-      remote_name: str = 'bedrock',
-      env: Dict[str, Any] = None,
-      auto_push: bool = True,
-      **kwargs
+        self,
+        splitfile_commands: str = None,
+        output_base: str = None,
+        repo_dict: RepoInfoDict = None,
+        **kwargs
     ) -> None:
-        self.uri = uri
+        self.repo_dict = repo_dict
         self.splitfile_commands = splitfile_commands
-        self.remote_name = remote_name
-        self.env = env
-        self.auto_push = auto_push
+        self.output_base = output_base
+
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs('uri', 'splitfile_commands')
-    def run(self, uri: str = None, splitfile_commands: str = None, **kwargs: Any):
+    @defaults_from_attrs('repo_dict', 'splitfile_commands', 'output_base')
+    def run(self, repo_dict: RepoInfoDict = None, splitfile_commands: str = None, output_base: str = None, **kwargs: Any):
         """
 
         Args:
@@ -55,30 +52,15 @@ class SplitfileTask(Task):
         Returns:
             - No return
         """
-
-
-        from splitgraph.config import create_config_dict
-        self.logger.info("DEBUG SGR CONFIG")
-        self.logger.info(create_config_dict())
-
-
         formatting_kwargs = {
             **kwargs,
             **prefect.context.get("parameters", {}).copy(),
             **prefect.context,
         }
 
-        repo_info = parse_repo(uri.format(**formatting_kwargs))
+        assert repo_dict, 'Must specify repo.'
+        repo_info = RepoInfo(**repo_dict)
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
-        remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
-        execute_commands(splitfile_commands, formatting_kwargs, repo)
-        repo.head.tag(repo_info.tag)
-        if self.auto_push:
-            repo.push(
-                remote,
-                handler="S3",
-                overwrite_objects=True,
-                overwrite_tags=True,
-                reupload_objects=True,
-            )
+        execute_commands(splitfile_commands, params=formatting_kwargs, output=repo, output_base=output_base)
+ 

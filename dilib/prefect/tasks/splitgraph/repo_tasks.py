@@ -9,6 +9,7 @@ from dilib.format import format_with_default
 from dilib.splitgraph import (RepoInfo, RepoInfoDict, SchemaValidationError,
                               SemanticInfo, SemanticInfoDict, parse_repo)
 from prefect import Task
+from prefect.tasks.templates.strings import StringFormatter
 from prefect.utilities.collections import DotDict
 from prefect.utilities.tasks import defaults_from_attrs
 from semantic_version import NpmSpec, Version
@@ -17,12 +18,21 @@ from splitgraph.core.engine import get_engine, repository_exists
 from splitgraph.core.repository import Repository, clone
 from splitgraph.ingestion.pandas import df_to_table
 
+version_formatter = StringFormatter(name='semantic version formatter', template='{major}.{minor}.{patch}')
+
 
 def parse_tag(tag: str) -> Union[Version, None]:
     try:
         return Version(tag)
     except ValueError as exc:
         return None
+
+class Workspace(TypedDict, total=False):
+    repo_dict: RepoInfoDict
+    image_hash: str
+    version: Version = None
+    remote_name: str = None
+    
 class SemanticCheckoutTask(Task):
     """
     Clone a splitgraph repository using semantic version markers. The newest semantic tag is
@@ -36,13 +46,13 @@ class SemanticCheckoutTask(Task):
     Examples:
 
      ```python
-    >>> SemanticCheckoutTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='0') #None if no version is found
+    >>> SemanticCheckoutTask(RepoInfoDict(namespace='org1', repository='interesting_data'), major='1', minor='0') #None if no version is found
     None
 
-    >>> SemanticCheckoutTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='1') #Clones the newest tag based on major/minor
+    >>> SemanticCheckoutTask(RepoInfoDict(namespace='org1', repository='interesting_data'), major='1', minor='1') #Clones the newest tag based on major/minor
     Version('1.1.35')
 
-    >>> SemanticCheckoutTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='1', prerelease='hourly') #Clones the newest tag using prerelease to denote incremental updates
+    >>> SemanticCheckoutTask(RepoInfoDict(namespace='org1', repository='interesting_data'), major='1', minor='1', prerelease='hourly') #Clones the newest tag using prerelease to denote incremental updates
     Version('1.1.36-hourly.13')
     ```
 
@@ -52,7 +62,9 @@ class SemanticCheckoutTask(Task):
     def __init__(
       self,
       repo_dict: RepoInfoDict = None,
-      semantic_dict: SemanticInfoDict = {'major': '1'},
+      semantic_dict: SemanticInfoDict = dict(
+          major='1',
+      ),
       remote_name: str = None,
       **kwargs
     ) -> None:
@@ -63,7 +75,7 @@ class SemanticCheckoutTask(Task):
 
 
     @defaults_from_attrs('repo_dict', 'semantic_dict', 'remote_name')
-    def run(self, repo_dict: RepoInfoDict = None, semantic_dict: SemanticInfoDict = None, remote_name: str = None, **kwargs: Any) -> Union[Version, None]:
+    def run(self, repo_dict: RepoInfoDict = None, semantic_dict: SemanticInfoDict = None, remote_name: str = None, **kwargs: Any) -> Workspace:
         """
 
         Args:
@@ -73,7 +85,6 @@ class SemanticCheckoutTask(Task):
             exist yet.
         """
         assert repo_dict, 'Must specify repo.'
-
         repo_info = RepoInfo(**repo_dict)
         semantic_info = SemanticInfo(**semantic_dict)
 
@@ -115,7 +126,7 @@ class SemanticCheckoutTask(Task):
 
         image = repo.images[image_hash]
         image.checkout(force=True)
-        return base_ref
+        return Workspace(repo_dict=repo_dict, image_hash=image_hash, version=base_ref, remote_name=remote_name)
 
 class SemanticCleanupTask(Task):
     """
@@ -129,9 +140,9 @@ class SemanticCleanupTask(Task):
     Examples:
 
      ```python
-    >>> SemanticCleanupTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='0', retain=3) #Retain 3 most recent tags
+    >>> SemanticCleanupTask(RepoInfoDict(namespace='org1', repository='interesting_data'), retain=3) #Retain 3 most recent tags
 
-    >>> SemanticCheckoutTask(RepoInfo(namespace='org1', repository='interesting_data'), major='1', minor='1', prerelease='hourly', retain=48) #Retain 48 most recent hourly tags
+    >>> SemanticCheckoutTask(RepoInfoDict(namespace='org1', repository='interesting_data'), prerelease='hourly', retain=48) #Retain 48 most recent hourly tags
 
     ```
 
@@ -141,20 +152,20 @@ class SemanticCleanupTask(Task):
     def __init__(
       self,
       repo_dict: RepoInfoDict = None,
-      semantic_dict: SemanticInfoDict = {},
+      prerelease: str = None,
       remote_name: str = None,
       retain: int = 1,
       **kwargs
     ) -> None:
         self.repo_dict = repo_dict
-        self.semantic_dict = semantic_dict
+        self.prerelease = prerelease
         self.remote_name = remote_name
         self.retain = retain
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_dict', 'semantic_dict', 'remote_name', 'retain')
-    def run(self, repo_dict: RepoInfoDict = None, semantic_dict: SemanticInfoDict = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
+    @defaults_from_attrs('repo_dict', 'prerelease', 'remote_name', 'retain')
+    def run(self, repo_dict: RepoInfoDict = None, prerelease: str = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
         """
 
         Args:
@@ -163,12 +174,10 @@ class SemanticCleanupTask(Task):
 
         """
         assert repo_dict, 'Must specify repo.'
-
         repo_info = RepoInfo(**repo_dict)
-        semantic_info = SemanticInfo(**semantic_dict)
-
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+
         if remote_name:
             repo = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
 
@@ -180,8 +189,8 @@ class SemanticCleanupTask(Task):
 
         valid_versions = [version for version in version_list if version]
         non_prerelease_versions = [version for version in valid_versions if len(version.prerelease) == 0]
-        prerelease_versions = [version for version in valid_versions if semantic_info.prerelease and len(version.prerelease) > 0 and version.prerelease[0] == semantic_info.prerelease]
-        prune_candidates = prerelease_versions if semantic_info.prerelease else non_prerelease_versions
+        prerelease_versions = [version for version in valid_versions if prerelease and len(version.prerelease) > 0 and version.prerelease[0] == prerelease]
+        prune_candidates = prerelease_versions if prerelease else non_prerelease_versions
 
         total_candidates = len(prune_candidates)
         prune_count = total_candidates - retain
@@ -251,7 +260,7 @@ class CommitTask(Task):
     Examples:
 
      ```python
-    >>> CommitTask(RepoInfo(namespace='org1', repository='interesting_data',  major='1', minor='0')) #None if no version is found
+    >>> CommitTask(repo_info=repo_info, tags=tags)
     None
 
     ```
@@ -279,7 +288,8 @@ class CommitTask(Task):
         Returns:
 
         """
-        assert repo_dict, 'Must specify repo.'
+        
+        assert repo_dict, 'Must specify repo_dict.'
         repo_info = RepoInfo(**repo_dict)
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
@@ -305,7 +315,7 @@ class DataFrameToTableTask(Task):
     Examples:
 
      ```python
-    >>> DataFrameToTableTask(RepoInfo(namespace='org1', repository='interesting_data'))
+    >>> DataFrameToTableTask(RepoInfoDict(namespace='org1', repository='interesting_data'))
     None
 
     ```
@@ -337,13 +347,14 @@ class DataFrameToTableTask(Task):
         Returns:
 
         """
-        assert repo_dict, 'Must specify repo.'
+        assert repo_dict, 'Must specify repo_dict.'
         repo_info = RepoInfo(**repo_dict)
+
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
 
         table = params.table or table
         if_exists = params.if_exists or if_exists
 
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
 
         df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
 
@@ -362,7 +373,7 @@ class SemanticBumpTask(Task):
 
      ```python
     >>> bump=SemanticBumpTask(build=('meta1', 'meta2'))
-    >>> tags=bump(base_ref=Version('1.0.0'))
+    >>> tags=bump(base_ref=version=Version('1.0.0'))
     Result(value=['1', '1.0', '1.0.1+meta1.meta2'])
 
 
@@ -372,17 +383,17 @@ class SemanticBumpTask(Task):
 
     def __init__(
         self,
-        semantic_dict: SemanticInfoDict = {'major': '1', 'minor': '0'},
+        initial_version: str = None,
         build: Tuple[str] = ("{date:%Y-%m-%dT%H}", "{date:%M}", "{flow_run_name}"),
         **kwargs
     ) -> None:
         self.build = build
-        self.semantic_dict = semantic_dict
+        self.initial_version = initial_version
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('semantic_dict', 'build')
-    def run(self, base_ref: Version, semantic_dict: SemanticInfoDict = None, build: Tuple[str] = None, **kwargs: Any) -> List[str]:
+    @defaults_from_attrs('initial_version', 'build')
+    def run(self, base_ref: Version, initial_version: str = None, build: Tuple[str] = None, **kwargs: Any) -> List[str]:
         """
 
         Args:
@@ -396,11 +407,7 @@ class SemanticBumpTask(Task):
             **prefect.context,
         }
 
-
-        semantic_info = SemanticInfo(**semantic_dict)
-
-
-        next_version = base_ref.next_patch() if base_ref else Version(f'{semantic_info.major}.{semantic_info.minor}.0')
+        next_version = base_ref.next_patch() if base_ref else Version(initial_version or '1.0.0')
         is_prerelease = base_ref and len(base_ref.prerelease) >= 2
         if is_prerelease:
             prerelease, prerelease_count = base_ref.prerelease
@@ -429,6 +436,7 @@ class SemanticBumpTask(Task):
             str(next_version),
         ]
 
+
 class PushRepoTask(Task):
     """
     Push splitgraph changes to a remote engine.
@@ -441,7 +449,7 @@ class PushRepoTask(Task):
     Examples:
 
      ```python
-    >>> PushRepoTask(RepoInfo(namespace='org1', repository='interesting_data'), remote_name='bedrock')
+    >>> PushRepoTask(RepoInfoDict(namespace='org1', repository='interesting_data'), remote_name='bedrock')
 
 
     ```
@@ -472,11 +480,13 @@ class PushRepoTask(Task):
         assert repo_dict, 'Must specify repo.'
         repo_info = RepoInfo(**repo_dict)
 
+       
         if not remote_name:
             self.logger.warn('No remote_name specified. Not pushing.')
             return
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+
         remote = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
         repo.push(
             remote,

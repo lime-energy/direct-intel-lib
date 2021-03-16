@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 import prefect
-from dilib.splitgraph import SchemaValidationError, parse_repo
+from dilib.splitgraph import SchemaValidationError, RepoInfo, RepoInfoDict
 from pandas_schema import Schema
 from prefect import Task
 from prefect.utilities.collections import DotDict
@@ -33,25 +33,23 @@ class SplitgraphFetch(Task):
 
     def __init__(
       self, 
-      uri: str,
-      query: str,
+      query: str = None,
+      repo_dict: RepoInfoDict = None,
       schema: Schema = None,
       layer_query: bool = False,
-      remote_name: str = 'bedrock',
-      env: Dict[str, Any] = None,
+      remote_name: str = None,
       **kwargs
     ) -> None:
-        self.uri = uri
+        self.repo_dict = repo_dict
         self.query = query
         self.schema = schema
         self.layer_query = layer_query
         self.remote_name = remote_name
-        self.env = env
         
         super().__init__(**kwargs)
 
-    @defaults_from_attrs('uri', 'query')
-    def run(self, uri: str = None, query: str = None, **kwargs: Any):
+    @defaults_from_attrs('repo_dict', 'query', 'remote_name')
+    def run(self, repo_dict: RepoInfoDict = None, query: str = None, remote_name: str = None, **kwargs: Any):
         """  
 
         Args:
@@ -59,26 +57,11 @@ class SplitgraphFetch(Task):
         Returns:
             - No return
         """
-
-        formatting_kwargs = {
-            **kwargs,
-            **prefect.context.get("parameters", {}).copy(),
-            **prefect.context,            
-        }
-
-        repo_info = parse_repo(uri.format(**formatting_kwargs))
-
+        assert repo_dict, 'Must specify repo.'
+        repo_info = RepoInfo(**repo_dict)
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
-        remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
-        cloned_repo=clone(
-            remote,
-            local_repository=repo,
-            download_all=True,
-            overwrite_objects=True,
-            overwrite_tags=True,
-            single_image=repo_info.tag,
-        )
-        data = sql_to_df(self.query, repository=cloned_repo, use_lq=self.layer_query)
+       
+        data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)
 
         if self.schema is not None:
             errors = self.schema.validate(data)

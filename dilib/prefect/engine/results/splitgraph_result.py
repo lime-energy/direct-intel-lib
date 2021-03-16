@@ -82,7 +82,7 @@ class SplitgraphResult(Result):
         new.location = location
         try:            
         
-            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repo)
+            repo = Repository(namespace=new.repo_info.namespace, repository=new.repo_info.repository)
             remote = Repository.from_template(repo, engine=get_engine(self.remote_name, autocommit=True))
 
             cloned_repo=clone(
