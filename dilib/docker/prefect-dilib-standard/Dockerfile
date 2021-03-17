@@ -11,3 +11,5 @@ COPY /standard_deps_bin.pex /standard_deps_bin.pex
 RUN mkdir flow_base
 RUN unzip /standard_deps_bin.pex -d /flow_base/
 RUN rm /standard_deps_bin.pex
+
+ADD .sgconfig /var/splitgraph/.sgconfig

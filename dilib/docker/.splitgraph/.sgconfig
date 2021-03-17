@@ -1,0 +1,14 @@
+[defaults]
+SG_LOGLEVEL=INFO
+SG_ENGINE_HOST=localhost
+SG_REPO_LOOKUP=bedrock
+SG_UPDATE_LAST=1612819945
+
+[data_sources]
+postgres_fdw=splitgraph.hooks.data_source.PostgreSQLDataSource
+mongo_fdw=splitgraph.hooks.data_source.MongoDataSource
+mysql_fdw=splitgraph.hooks.data_source.MySQLDataSource
+socrata=splitgraph.ingestion.socrata.mount.SocrataDataSource
+elasticsearch=splitgraph.hooks.data_source.ElasticSearchDataSource
+[external_handlers]
+S3=splitgraph.hooks.s3.S3ExternalObjectHandler

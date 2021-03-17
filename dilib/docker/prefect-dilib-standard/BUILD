@@ -18,5 +18,8 @@ docker_image(
     image = "prefect-dilib-standard",
     dockerfile = "Dockerfile",
     version = "latest",
-    srcs = [":standard_deps_bin"],
+    srcs = [
+        ":standard_deps_bin",
+        "//dilib/docker/.splitgraph:sgconfig",
+    ],
 )

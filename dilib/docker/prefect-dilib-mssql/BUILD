@@ -18,5 +18,8 @@ docker_image(
     image = "prefect-dilib-mssql",
     dockerfile = "Dockerfile",
     version = "latest",
-    srcs = [":mssql_deps_bin"],
+    srcs = [
+        ":mssql_deps_bin",
+        "//dilib/docker/.splitgraph:sgconfig",
+    ],
 )
