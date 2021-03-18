@@ -287,6 +287,9 @@ class CommitTask(Task):
         repos = dict((name, Repository(namespace=workspace['repo_info'].namespace, repository=workspace['repo_info'].repository)) for (name, workspace) in workspaces.items())
         repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
 
+        for name, repo in repos.items():
+            self.logger.info(f'Repo {name} has changes:{name in repos_with_changes}')
+
         
         for name, repo in repos_with_changes.items():
             repo_tags = tags[name] if name in tags else []
