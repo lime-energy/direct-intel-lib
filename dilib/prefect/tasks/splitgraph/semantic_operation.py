@@ -25,7 +25,7 @@ class SemanticOperation:
 @contextmanager
 def semantic_operation(
     flow: Flow,
-    upstream_repos: dict[str, str] = None,
+    upstream_repos: Dict[str, str] = None,
     versions_to_retain = 1,
     remote_name: str = None,
 ) -> Iterator["SemanticOperation"]:
