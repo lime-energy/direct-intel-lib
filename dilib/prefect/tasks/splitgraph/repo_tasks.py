@@ -294,6 +294,7 @@ class CommitTask(Task):
             for tag in repo_tags:
                 new_img.tag(tag)
             repo.engine.commit()
+            self.logger.info(f'Commit and tag complete: {name}[{repo_tags}]')
     
         changes_repo_uris = dict((name, workspaces[name]['repo_info'].uri) for (name, repo) in repos_with_changes.items())
         return changes_repo_uris
@@ -502,3 +503,4 @@ class PushRepoTask(Task):
                 overwrite_tags=True,
                 reupload_objects=True,
             )
+            self.logger.info(f'Pushed to {remote_name}')
