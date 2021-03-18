@@ -35,7 +35,7 @@ class SplitfileTask(Task):
         splitfile_commands: str = None,
         output: str = None,
         output_base: str = None,
-        upstream_repos: dict[str, str] = None,
+        upstream_repos: Dict[str, str] = None,
         **kwargs
     ) -> None:
         self.upstream_repos = upstream_repos
@@ -47,7 +47,7 @@ class SplitfileTask(Task):
         super().__init__(**kwargs)
 
     @defaults_from_attrs('upstream_repos', 'splitfile_commands', 'output', 'output_base')
-    def run(self, upstream_repos: dict[str, str] = None, splitfile_commands: str = None, output: str = None, output_base: str = None, **kwargs: Any):
+    def run(self, upstream_repos: Dict[str, str] = None, splitfile_commands: str = None, output: str = None, output_base: str = None, **kwargs: Any):
         """
 
         Args:

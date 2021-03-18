@@ -53,7 +53,7 @@ class SemanticCheckoutTask(Task):
 
     def __init__(
       self,
-      upstream_repos: dict[str, str] = None,
+      upstream_repos: Dict[str, str] = None,
       remote_name: str = None,
       **kwargs
     ) -> None:
@@ -63,7 +63,7 @@ class SemanticCheckoutTask(Task):
 
 
     @defaults_from_attrs('upstream_repos', 'remote_name')
-    def run(self, upstream_repos: dict[str, str] = None, remote_name: str = None, **kwargs: Any) -> dict[str, Workspace]:
+    def run(self, upstream_repos: Dict[str, str] = None, remote_name: str = None, **kwargs: Any) -> Dict[str, Workspace]:
         """
 
         Args:
@@ -144,7 +144,7 @@ class SemanticCleanupTask(Task):
 
     def __init__(
       self,
-      repo_uris: dict[str, str] = None,
+      repo_uris: Dict[str, str] = None,
       remote_name: str = None,
       retain: int = 1,
       **kwargs
@@ -156,7 +156,7 @@ class SemanticCleanupTask(Task):
 
 
     @defaults_from_attrs('repo_uris', 'remote_name', 'retain')
-    def run(self, repo_uris: dict[str, str] = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
+    def run(self, repo_uris: Dict[str, str] = None, remote_name: str = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
         """
 
         Args:
@@ -263,8 +263,8 @@ class CommitTask(Task):
 
     def __init__(
       self,
-      workspaces: dict[str, Workspace] = None,
-      tags: dict[str, List[str]] = None,
+      workspaces: Dict[str, Workspace] = None,
+      tags: Dict[str, List[str]] = None,
       chunk_size: int = 10000,
       **kwargs
     ) -> None:
@@ -275,7 +275,7 @@ class CommitTask(Task):
 
 
     @defaults_from_attrs('workspaces', 'tags')
-    def run(self, workspaces: dict[str, Workspace] = None, comment: str = None, tags: dict[str, List[str]] = None, **kwargs: Any):
+    def run(self, workspaces: Dict[str, Workspace] = None, comment: str = None, tags: Dict[str, List[str]] = None, **kwargs: Any):
         """
 
         Args:
@@ -385,7 +385,7 @@ class SemanticBumpTask(Task):
 
     def __init__(
         self,
-        workspaces: dict[str, Workspace] = None,
+        workspaces: Dict[str, Workspace] = None,
         build: Tuple[str] = ("{date:%Y-%m-%dT%H}", "{date:%M}", "{flow_run_name}"),
         **kwargs
     ) -> None:
@@ -395,7 +395,7 @@ class SemanticBumpTask(Task):
 
 
     @defaults_from_attrs('workspaces', 'build')
-    def run(self, workspaces: dict[str, Workspace] = None, build: Tuple[str] = None, **kwargs: Any) -> dict[str, List[str]]:
+    def run(self, workspaces: Dict[str, Workspace] = None, build: Tuple[str] = None, **kwargs: Any) -> Dict[str, List[str]]:
         """
 
         Args:
@@ -468,7 +468,7 @@ class PushRepoTask(Task):
 
     def __init__(
       self,
-      repo_uris: dict[str, str] = None,
+      repo_uris: Dict[str, str] = None,
       remote_name: str = None,
       **kwargs
     ) -> None:
@@ -478,7 +478,7 @@ class PushRepoTask(Task):
 
 
     @defaults_from_attrs('repo_uris', 'remote_name')
-    def run(self, repo_uris: dict[str, str] = None, remote_name: str = None, **kwargs: Any):
+    def run(self, repo_uris: Dict[str, str] = None, remote_name: str = None, **kwargs: Any):
         """
 
         Args:
