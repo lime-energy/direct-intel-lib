@@ -2,7 +2,6 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Iterator
 
-from dilib.splitgraph import RepoInfoDict, SemanticInfoDict
 from prefect import Flow, Task, task
 
 from .repo_tasks import (CommitTask, PushRepoTask, SemanticBumpTask,
@@ -18,7 +17,7 @@ sematic_cleanup = SemanticCleanupTask()
 
 @dataclass()
 class SemanticOperation:
-    workspace: Task
+    workspaces: Task
     commit: Task = None
     push: Task = None
     cleanup: Task = None
@@ -26,55 +25,43 @@ class SemanticOperation:
 @contextmanager
 def semantic_operation(
     flow: Flow,
-    repo_dict: RepoInfoDict = None,
-    semantic_dict: SemanticInfoDict = dict(
-        major='1'
-    ),
+    upstream_repos: dict[str, str] = None,
     versions_to_retain = 1,
     remote_name: str = None,
 ) -> Iterator["SemanticOperation"]:
-    workspace = checkout(
+    workspaces = checkout(
         remote_name=remote_name,
-        repo_dict=repo_dict,   
-        semantic_dict=semantic_dict,      
+        upstream_repos=upstream_repos,  
     )
 
     op = SemanticOperation(
-        workspace=workspace
+        workspaces=workspaces
     )
   
     yield op
 
-    initial_version = version_formatter(
-        major=semantic_dict['major'],
-        minor=semantic_dict['minor'],
-        patch=0
-    )
-    tags = sematic_bump(
-        initial_version=initial_version,
-        base_ref=workspace['version'],
+    repo_tags = sematic_bump(
+        workspaces=workspaces,
     )
 
-    commit_done = commit(
-        tags=tags, 
-        repo_dict=workspace['repo_dict'],
+    changes_repo_uris = commit(
+        tags=repo_tags, 
+        workspaces=workspaces,
         upstream_tasks=flow.terminal_tasks(),
     )
 
     pushed = push(
-        repo_dict=workspace['repo_dict'],
-        remote_name=workspace['remote_name'],
-        upstream_tasks=[commit_done]
+        repo_uris=changes_repo_uris,
+        remote_name=remote_name
     )
     cleanup=sematic_cleanup(
         retain=versions_to_retain, 
-        repo_dict=workspace['repo_dict'],
-        remote_name=workspace['remote_name'],
-        prerelease=semantic_dict['prerelease'],
+        repo_uris=changes_repo_uris,
+        remote_name=remote_name,
         upstream_tasks=[pushed]
     )
 
        
-    op.commit=commit_done
+    op.commit=changes_repo_uris
     op.push=pushed
     op.cleanup=cleanup

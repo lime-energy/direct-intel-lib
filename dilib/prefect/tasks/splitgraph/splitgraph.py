@@ -1,7 +1,7 @@
 from typing import Any, Dict
 
 import prefect
-from dilib.splitgraph import SchemaValidationError, RepoInfo, RepoInfoDict
+from dilib.splitgraph import SchemaValidationError, RepoInfo, parse_repo
 from pandas_schema import Schema
 from prefect import Task
 from prefect.utilities.collections import DotDict
@@ -34,20 +34,20 @@ class SplitgraphFetch(Task):
     def __init__(
       self, 
       query: str = None,
-      repo_dict: RepoInfoDict = None,
+      repo_uri: str = None,
       schema: Schema = None,
       layer_query: bool = False,
       **kwargs
     ) -> None:
-        self.repo_dict = repo_dict
+        self.repo_uri = repo_uri
         self.query = query
         self.schema = schema
         self.layer_query = layer_query
         
         super().__init__(**kwargs)
 
-    @defaults_from_attrs('repo_dict', 'query')
-    def run(self, repo_dict: RepoInfoDict = None, query: str = None, **kwargs: Any):
+    @defaults_from_attrs('repo_uri', 'query')
+    def run(self, repo_uri: str = None, query: str = None, **kwargs: Any):
         """  
 
         Args:
@@ -55,10 +55,11 @@ class SplitgraphFetch(Task):
         Returns:
             - No return
         """
-        assert repo_dict, 'Must specify repo.'
-        repo_info = RepoInfo(**repo_dict)
+        assert repo_uri, 'Must specify repo_uri.'
+        repo_info = parse_repo(repo_uri)
+
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
-       
+  
         data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)
 
         if self.schema is not None:

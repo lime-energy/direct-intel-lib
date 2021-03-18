@@ -1,7 +1,8 @@
 from typing import Any, Dict
 
 import prefect
-from dilib.splitgraph import SchemaValidationError, RepoInfo, RepoInfoDict
+from dilib.splitgraph import (RepoInfo, SchemaValidationError,
+                              Workspace, parse_repo)
 from prefect import Task
 from prefect.utilities.collections import DotDict
 from prefect.utilities.tasks import defaults_from_attrs
@@ -32,19 +33,21 @@ class SplitfileTask(Task):
     def __init__(
         self,
         splitfile_commands: str = None,
+        output: str = None,
         output_base: str = None,
-        repo_dict: RepoInfoDict = None,
+        upstream_repos: dict[str, str] = None,
         **kwargs
     ) -> None:
-        self.repo_dict = repo_dict
+        self.upstream_repos = upstream_repos
         self.splitfile_commands = splitfile_commands
+        self.output = output
         self.output_base = output_base
 
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs('repo_dict', 'splitfile_commands', 'output_base')
-    def run(self, repo_dict: RepoInfoDict = None, splitfile_commands: str = None, output_base: str = None, **kwargs: Any):
+    @defaults_from_attrs('upstream_repos', 'splitfile_commands', 'output', 'output_base')
+    def run(self, upstream_repos: dict[str, str] = None, splitfile_commands: str = None, output: str = None, output_base: str = None, **kwargs: Any):
         """
 
         Args:
@@ -52,15 +55,23 @@ class SplitfileTask(Task):
         Returns:
             - No return
         """
+        repo_infos = dict((name, parse_repo(uri)) for (name, uri) in upstream_repos.items())
+        repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
+  
+        repo_uris = dict((name, repo_info.uri) for (name, repo_info) in repo_infos.items())
+ 
+
         formatting_kwargs = {
+            **repo_uris,
             **kwargs,
             **prefect.context.get("parameters", {}).copy(),
             **prefect.context,
         }
 
-        assert repo_dict, 'Must specify repo.'
-        repo_info = RepoInfo(**repo_dict)
 
-        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+
+        assert output and output in repos, 'Must specify an output that exists in upstream_repos.'
+        repo = repos[output]
+
         execute_commands(splitfile_commands, params=formatting_kwargs, output=repo, output_base=output_base)
  
