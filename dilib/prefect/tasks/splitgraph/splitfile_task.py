@@ -68,5 +68,10 @@ class SplitfileTask(Task):
         repo_info = parse_repo(output['repo_uri'])
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
      
-        execute_commands(splitfile_commands, params=formatting_kwargs, output=repo, output_base=output['image_hash'])
+        execute_commands(
+            splitfile_commands, 
+            params=formatting_kwargs, 
+            output=repo, 
+            # output_base=output['image_hash'],
+        )
  
