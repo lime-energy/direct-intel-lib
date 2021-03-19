@@ -33,21 +33,19 @@ class SplitfileTask(Task):
     def __init__(
         self,
         splitfile_commands: str = None,
-        output: str = None,
-        output_base: str = None,
+        output: Workspace = None,
         upstream_repos: Dict[str, str] = None,
         **kwargs
     ) -> None:
         self.upstream_repos = upstream_repos
         self.splitfile_commands = splitfile_commands
         self.output = output
-        self.output_base = output_base
 
 
         super().__init__(**kwargs)
 
-    @defaults_from_attrs('upstream_repos', 'splitfile_commands', 'output', 'output_base')
-    def run(self, upstream_repos: Dict[str, str] = None, splitfile_commands: str = None, output: str = None, output_base: str = None, **kwargs: Any):
+    @defaults_from_attrs('upstream_repos', 'splitfile_commands', 'output',)
+    def run(self, upstream_repos: Dict[str, str] = None, splitfile_commands: str = None, output: Workspace = None, **kwargs: Any):
         """
 
         Args:
@@ -56,8 +54,6 @@ class SplitfileTask(Task):
             - No return
         """
         repo_infos = dict((name, parse_repo(uri)) for (name, uri) in upstream_repos.items())
-        repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
-  
         repo_uris = dict((name, repo_info.uri) for (name, repo_info) in repo_infos.items())
  
 
@@ -69,9 +65,8 @@ class SplitfileTask(Task):
         }
 
 
-
-        assert output and output in repos, 'Must specify an output that exists in upstream_repos.'
-        repo = repos[output]
-
-        execute_commands(splitfile_commands, params=formatting_kwargs, output=repo, output_base=output_base)
+        repo_info = parse_repo(output['repo_uri'])
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+     
+        execute_commands(splitfile_commands, params=formatting_kwargs, output=repo, output_base=output['image_hash'])
  

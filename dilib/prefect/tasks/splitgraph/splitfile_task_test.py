@@ -17,7 +17,10 @@ class SplitfileTaskTest(unittest.TestCase):
             upstream_repos=dict(
                 test='integration-tests/splitfile-test:1'
             ),
-            output='test',
+            output=Workspace(
+                repo_uri='integration-tests/splitfile-test:1',
+                image_hash=None,
+            ),
             splitfile_commands=splitfile,
         ) 
         runner = TaskRunner(task=splitfile_task)
