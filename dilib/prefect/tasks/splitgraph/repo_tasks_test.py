@@ -285,7 +285,7 @@ class RepoTasksTest(unittest.TestCase):
 
     def test_can_commit(self):
 
-
+        old_image_hash = self.repo.head.image_hash
         checkout = SemanticCheckoutTask(
             upstream_repos=dict(
                 abc='abc/1234:1',
@@ -308,40 +308,7 @@ class RepoTasksTest(unittest.TestCase):
                 if state.is_failed():
                     print(state)
                     self.fail()
-            self.assertListEqual(self.repo.head.get_tags(), ['HEAD'])
-
-    def test_can_commit_with_tags(self):
-        self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory'])
-
-        checkout = SemanticCheckoutTask(
-            upstream_repos=dict(
-                abc='abc/1234:1',
-            ),
-        )
-
-        workspaces = checkout.run()
-        commit = CommitTask(
-            workspaces=workspaces,
-        )
-        df_to_table(fake_data(10), repository=self.repo, table="unit_test", if_exists='replace')
-
-
-        runner = TaskRunner(task=commit)
-        tags_edge = Edge(Task(), commit, key='sgr_tags')
-        tag_state = Success(result=ConstantResult(value=dict(
-            abc=['foo', 'bar', 'tag1_w_upstream']
-        )))
-
-        with raise_on_exception():
-            with prefect.context():
-                state = runner.run(upstream_states={tags_edge: tag_state})
-
-                if state.is_failed():
-                    print(state)
-                    self.fail()
-
-
-                self.assertCountEqual(self.repo.head.get_tags(), ['HEAD', 'foo', 'bar', 'tag1_w_upstream'])
+            self.assertNotEqual(self.repo.head.image_hash, old_image_hash)
 
     def test_can_import_df(self):
         checkout = SemanticCheckoutTask(
@@ -368,25 +335,25 @@ class RepoTasksTest(unittest.TestCase):
 
                 self.assertTrue(table_exists_at(self.repo, 'footable1'))
 
-#     def test_version_to_date(self):
+    def test_version_to_date(self):
 
-#         version_to_date = VersionToDateTask()
+        version_to_date = VersionToDateTask()
 
-#         runner = TaskRunner(task=version_to_date)
-#         edge = Edge(Task(), version_to_date, key='version')
-#         upstream_state = Success(result=ConstantResult(value=Version('1.0.0+2021-03-03T00.stinky-fish')))
-
-
-#         with raise_on_exception():
-#             with prefect.context():
-#                 state = runner.run(upstream_states={edge: upstream_state})
-
-#                 if state.is_failed():
-#                     print(state)
-#                     self.fail()
+        runner = TaskRunner(task=version_to_date)
+        edge = Edge(Task(), version_to_date, key='version')
+        upstream_state = Success(result=ConstantResult(value=Version('1.0.0+2021-03-03T00.stinky-fish')))
 
 
-#                 self.assertEqual(state.result, pendulum.parse('2021-03-03T00'))
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run(upstream_states={edge: upstream_state})
+
+                if state.is_failed():
+                    print(state)
+                    self.fail()
+
+
+                self.assertEqual(state.result, pendulum.parse('2021-03-03T00'))
 
     def test_can_semantic_bump(self):
         semantic_bump = SemanticBumpTask()
@@ -514,16 +481,21 @@ class RepoTasksTest(unittest.TestCase):
                 ))
 
     def test_can_push(self):
-        push = PushRepoTask(
-            repo_uris=dict(
+        checkout = SemanticCheckoutTask(
+            upstream_repos=dict(
                 abc='abc/1234:1',
             ),
+        )
+
+        workspaces = checkout.run()
+
+        push = PushRepoTask(
+            workspaces=workspaces,
             remote_name='bedrock'
         )
 
         df_to_table(fake_data(10), repository=self.repo, table="unit_test", if_exists='replace')
         self.repo.commit()
-        self.repo.engine.commit()
 
         runner = TaskRunner(task=push)
 
@@ -535,6 +507,40 @@ class RepoTasksTest(unittest.TestCase):
                     print(state)
                     self.fail()
 
+
+    def test_can_push_with_tags(self):
+        self.tag_repo(['1.0.0', '1', '1.0', '1.0.0+20200228.blue-ivory'])
+
+        checkout = SemanticCheckoutTask(
+            upstream_repos=dict(
+                abc='abc/1234:1',
+            ),
+        )
+
+        workspaces = checkout.run()
+        push = PushRepoTask(
+            workspaces=workspaces,
+            remote_name='bedrock'
+        )
+
+        self.repo.commit()
+    
+        runner = TaskRunner(task=push)
+        tags_edge = Edge(Task(), push, key='sgr_tags')
+        tag_state = Success(result=ConstantResult(value=dict(
+            abc=['foo', 'bar', 'tag1_w_upstream']
+        )))
+
+        with raise_on_exception():
+            with prefect.context():
+                state = runner.run(upstream_states={tags_edge: tag_state})
+
+                if state.is_failed():
+                    print(state)
+                    self.fail()
+
+
+                self.assertCountEqual(self.repo.head.get_tags(), ['HEAD', 'foo', 'bar', 'tag1_w_upstream'])
 
 if __name__ == '__main__':
     unittest.main()

@@ -44,24 +44,23 @@ def semantic_operation(
         workspaces=workspaces,
     )
 
-    changes_repo_uris = commit(
-        sgr_tags=repo_tags, 
+    committed_repo_uris = commit(
         workspaces=workspaces,
         upstream_tasks=flow.terminal_tasks(),
     )
 
-    pushed = push(
-        repo_uris=changes_repo_uris,
+    tagged_repo_uris = push(
+        sgr_tags=repo_tags, 
+        workspaces=workspaces,
         remote_name=remote_name
     )
     cleanup=sematic_cleanup(
         retain=versions_to_retain, 
-        repo_uris=changes_repo_uris,
+        repo_uris=tagged_repo_uris,
         remote_name=remote_name,
-        upstream_tasks=[pushed]
     )
 
        
-    op.commit=changes_repo_uris
-    op.push=pushed
+    op.commit=committed_repo_uris
+    op.push=tagged_repo_uris
     op.cleanup=cleanup

@@ -253,7 +253,7 @@ class CommitTask(Task):
     Examples:
 
      ```python
-    >>> CommitTask(sgr_tags=sgr_tags)
+    >>> CommitTask()
     None
 
     ```
@@ -264,18 +264,16 @@ class CommitTask(Task):
     def __init__(
       self,
       workspaces: Dict[str, Workspace] = None,
-      sgr_tags: Dict[str, List[str]] = None,
       chunk_size: int = 10000,
       **kwargs
     ) -> None:
         self.workspaces = workspaces
-        self.sgr_tags = sgr_tags
         self.chunk_size = chunk_size
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('workspaces', 'sgr_tags')
-    def run(self, workspaces: Dict[str, Workspace] = None, comment: str = None, sgr_tags: Dict[str, List[str]] = None, **kwargs: Any):
+    @defaults_from_attrs('workspaces')
+    def run(self, workspaces: Dict[str, Workspace] = None, comment: str = None, **kwargs: Any):
         """
 
         Args:
@@ -288,20 +286,17 @@ class CommitTask(Task):
         repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
         repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
 
-        for name, repo in repos.items():
-            self.logger.info(f'Repo {name} has changes:{name in repos_with_changes}')
+        for name, repo in repos_with_changes.items():
+            self.logger.info(f'Repo {name} has changes')
 
         
-        for name, repo in repos_with_changes.items():
-            repo_tags = sgr_tags[name] if sgr_tags and name in sgr_tags else []
+        for name, repo in repos_with_changes.items(): 
             new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
-            for tag in repo_tags:
-                new_img.tag(tag)
-
-            self.logger.info(f'Commit and tag complete: {name}[{repo_tags}]')
+            self.logger.info(f'Commit complete: {name}')
     
-        changes_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
-        return changes_repo_uris
+        committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
+        return committed_repo_uris
+
 
 @dataclass(frozen=True)
 class DataFrameToTableParams:
@@ -473,18 +468,20 @@ class PushRepoTask(Task):
 
 
     def __init__(
-      self,
-      repo_uris: Dict[str, str] = None,
-      remote_name: str = None,
-      **kwargs
+        self,
+        workspaces: Dict[str, Workspace] = None,
+        sgr_tags: Dict[str, List[str]] = None,
+        remote_name: str = None,
+        **kwargs
     ) -> None:
-        self.repo_uris = repo_uris
+        self.workspaces = workspaces
+        self.sgr_tags = sgr_tags
         self.remote_name = remote_name
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('repo_uris', 'remote_name')
-    def run(self, repo_uris: Dict[str, str] = None, remote_name: str = None, **kwargs: Any):
+    @defaults_from_attrs('workspaces', 'sgr_tags', 'remote_name')
+    def run(self, workspaces: Dict[str, Workspace] = None, sgr_tags: Dict[str, List[str]] = None, remote_name: str = None, **kwargs: Any):
         """
 
         Args:
@@ -492,14 +489,20 @@ class PushRepoTask(Task):
         Returns:
 
         """
-        if not remote_name:
-            self.logger.warn('No remote_name specified. Not pushing.')
-            return
-
-        repo_infos = dict((name, parse_repo(uri)) for (name, uri) in repo_uris.items())
+  
+        repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
         repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
+        repos_with_new_images = dict((name, repo) for (name, repo) in repos.items() if repo.head.image_hash != workspaces[name]['image_hash'])
 
-        for name, repo in repos.items():
+        for name, repo in repos_with_new_images.items():
+            repo_tags = sgr_tags[name] if sgr_tags and name in sgr_tags else []
+            for tag in repo_tags:
+                repo.head.tag(tag)
+
+            if not remote_name:
+                self.logger.warn(f'No remote_name specified. Not pushing {name}.')
+                continue
+
             remote = Repository.from_template(repo, engine=get_engine(remote_name))
             repo.push(
                 remote,
@@ -508,4 +511,7 @@ class PushRepoTask(Task):
                 overwrite_tags=True,
                 reupload_objects=True,
             )
-            self.logger.info(f'Pushed to {remote_name}')
+            self.logger.info(f'Pushed {name} to {remote_name}')
+
+        tagged_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_new_images.items())
+        return tagged_repo_uris
