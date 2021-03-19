@@ -1,3 +1,4 @@
+
 import pkgutil
 import unittest
 from datetime import datetime
@@ -77,13 +78,15 @@ with Flow('sample') as flow:
     ) as op:
         # load_done = df_to_table_task(fake_extract(1), upstream_tasks=[base_ref])
         workspaces = op.workspaces
+        foo1=workspaces['unittest']
+        foo2=workspaces['foo']
         load_done = df_to_table_task.map(
             params=extract_results,
-            repo_uri=unmapped(upstream_repos['unittest'])
+            repo_uri=unmapped(foo1['repo_uri'])
         )
         load_done2 = df_to_table_task.map(
             params=extract_results,
-            repo_uri=unmapped(upstream_repos['foo'])
+            repo_uri=unmapped(foo2['repo_uri'])
         )
         say_something('after_load', upstream_tasks=[load_done, load_done2])
     
@@ -113,13 +116,13 @@ class RepoTasksTest(unittest.TestCase):
                     parameters=dict(
                         remote_name=remote_name,
                         upstream_repos=dict(
-                            unittest='unittest/unittest:1.0',
-                            foo='foo/unittest2:1.0',
+                            unittest='foo13/unittest1:1.0',
+                            foo='foo13/unittest2:1.0',
                         ),
                         versions_to_retain=5,
                     )
                 )
-              
+   
                 for task in flow.tasks:
                     print(f'{task.name} - {state.result[task]} - {state.result[task]._result.value}')
 
@@ -324,7 +327,7 @@ class RepoTasksTest(unittest.TestCase):
 
 
         runner = TaskRunner(task=commit)
-        tags_edge = Edge(Task(), commit, key='tags')
+        tags_edge = Edge(Task(), commit, key='sgr_tags')
         tag_state = Success(result=ConstantResult(value=dict(
             abc=['foo', 'bar', 'tag1_w_upstream']
         )))
@@ -394,13 +397,8 @@ class RepoTasksTest(unittest.TestCase):
             result=ConstantResult(
                 value=dict(
                     abc=dict(
-                        version=Version('1.0.0+2021-03-03T00.stinky-fish'),
-                        repo_info=RepoInfo(
-                            uri='abc/1234:1',
-                            namespace='abc',
-                            repository='1234',
-                            major='1'
-                        ),                        
+                        repo_uri='abc/1234:1',
+                        version=Version('1.0.0+2021-03-03T00.stinky-fish'),                    
                     )
                 )
             )
@@ -430,13 +428,8 @@ class RepoTasksTest(unittest.TestCase):
             result=ConstantResult(
                 value=dict(
                     abc=dict(
-                        version=None,
-                        repo_info=RepoInfo(
-                            uri='abc/1234:1',
-                            namespace='abc',
-                            repository='1234',
-                            major='1'
-                        ),                        
+                        repo_uri='abc/1234:1',
+                        version=None,                       
                     )
                 )
             )
@@ -467,14 +460,8 @@ class RepoTasksTest(unittest.TestCase):
             result=ConstantResult(
                 value=dict(
                     abc=dict(
-                        version=None,
-                        repo_info=RepoInfo(
-                            uri='abc/1234:2.1',
-                            namespace='abc',
-                            repository='1234',
-                            major='2',
-                            minor='1',
-                        ),                        
+                        repo_uri='abc/1234:2.1',
+                        version=None,                     
                     )
                 )
             )
@@ -504,13 +491,8 @@ class RepoTasksTest(unittest.TestCase):
             result=ConstantResult(
                 value=dict(
                     abc=dict(
-                        version=Version('1.0.1-hourly.4+2021-03-08.zip-fur'),
-                        repo_info=RepoInfo(
-                            uri='abc/1234:1',
-                            namespace='abc',
-                            repository='1234',
-                            major='1'
-                        ),                        
+                        repo_uri='abc/1234:1-hourly',
+                        version=Version('1.0.1-hourly.4+2021-03-08.zip-fur'),                       
                     )
                 )
             )

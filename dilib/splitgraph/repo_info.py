@@ -22,30 +22,10 @@ class RepoInfo:
     prerelease: str = None
 
 class Workspace(TypedDict, total=False):
-    repo_info: RepoInfo
+    repo_uri: str
     image_hash: str
     version: Version = None
     
-# class RepoInfoDict(TypedDict, total=False):
-#     namespace: str
-#     repository: str
-#     tag: str
-#     table: str
-#     major: str
-#     minor: str
-#     prerelease: str
-
-
-
-# @dataclass(frozen=True)
-# class SemanticInfo:
-#     major: str = '1'
-#     minor: str = None
-#     prerelease: str = None
-# class SemanticInfoDict(TypedDict, total=False):
-#     major: str
-#     minor: str
-#     prerelease: str
 
 def parse_tag(tag: str) -> Union[Version, None]:
     try:

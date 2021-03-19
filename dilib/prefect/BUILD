@@ -20,6 +20,6 @@ python_test(
     deps = [
         ":lib",
 
-        ],
+    ],
 )
 

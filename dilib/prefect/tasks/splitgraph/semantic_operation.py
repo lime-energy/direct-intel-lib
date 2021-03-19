@@ -45,7 +45,7 @@ def semantic_operation(
     )
 
     changes_repo_uris = commit(
-        tags=repo_tags, 
+        sgr_tags=repo_tags, 
         workspaces=workspaces,
         upstream_tasks=flow.terminal_tasks(),
     )

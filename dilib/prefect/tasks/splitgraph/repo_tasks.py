@@ -88,7 +88,7 @@ class SemanticCheckoutTask(Task):
             repo.init()
 
         if remote_name:
-            remote = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
+            remote = Repository.from_template(repo, engine=get_engine(remote_name))
             cloned_repo=clone(
                 remote,
                 local_repository=repo,
@@ -120,7 +120,7 @@ class SemanticCheckoutTask(Task):
 
         image = repo.images[image_hash]
         image.checkout(force=True)
-        return Workspace(repo_info=repo_info, image_hash=image_hash, version=base_ref)
+        return Workspace(repo_uri=repo_info.uri, image_hash=image_hash, version=base_ref)
 class SemanticCleanupTask(Task):
     """
     Remove old tags. The retain parameter prevents this number of the newest tags from being removed.
@@ -169,7 +169,7 @@ class SemanticCleanupTask(Task):
         repo_infos = dict((name, parse_repo(uri)) for (name, uri) in repo_uris.items())
         repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
 
-        repos_to_prune = dict((name, Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))) for (name, repo) in repos.items()) if remote_name else repos
+        repos_to_prune = dict((name, Repository.from_template(repo, engine=get_engine(remote_name))) for (name, repo) in repos.items()) if remote_name else repos
 
         for name, repo_info in repo_infos.items():
             repo = repos_to_prune[name]
@@ -253,7 +253,7 @@ class CommitTask(Task):
     Examples:
 
      ```python
-    >>> CommitTask(tags=tags)
+    >>> CommitTask(sgr_tags=sgr_tags)
     None
 
     ```
@@ -264,18 +264,18 @@ class CommitTask(Task):
     def __init__(
       self,
       workspaces: Dict[str, Workspace] = None,
-      tags: Dict[str, List[str]] = None,
+      sgr_tags: Dict[str, List[str]] = None,
       chunk_size: int = 10000,
       **kwargs
     ) -> None:
         self.workspaces = workspaces
-        self.tags = tags
+        self.sgr_tags = sgr_tags
         self.chunk_size = chunk_size
         super().__init__(**kwargs)
 
 
-    @defaults_from_attrs('workspaces', 'tags')
-    def run(self, workspaces: Dict[str, Workspace] = None, comment: str = None, tags: Dict[str, List[str]] = None, **kwargs: Any):
+    @defaults_from_attrs('workspaces', 'sgr_tags')
+    def run(self, workspaces: Dict[str, Workspace] = None, comment: str = None, sgr_tags: Dict[str, List[str]] = None, **kwargs: Any):
         """
 
         Args:
@@ -284,7 +284,8 @@ class CommitTask(Task):
 
         """
 
-        repos = dict((name, Repository(namespace=workspace['repo_info'].namespace, repository=workspace['repo_info'].repository)) for (name, workspace) in workspaces.items())
+        repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
+        repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
         repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
 
         for name, repo in repos.items():
@@ -292,14 +293,14 @@ class CommitTask(Task):
 
         
         for name, repo in repos_with_changes.items():
-            repo_tags = tags[name] if name in tags else []
+            repo_tags = sgr_tags[name] if sgr_tags and name in sgr_tags else []
             new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
             for tag in repo_tags:
                 new_img.tag(tag)
-            repo.engine.commit()
+
             self.logger.info(f'Commit and tag complete: {name}[{repo_tags}]')
     
-        changes_repo_uris = dict((name, workspaces[name]['repo_info'].uri) for (name, repo) in repos_with_changes.items())
+        changes_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
         return changes_repo_uris
 
 @dataclass(frozen=True)
@@ -419,8 +420,9 @@ class SemanticBumpTask(Task):
         }
 
         base_ref = workspace['version']
+        repo_info = parse_repo(workspace['repo_uri'])
        
-        next_version = base_ref.next_patch() if base_ref else Version(f'{workspace["repo_info"].major}.{workspace["repo_info"].minor}.0' if workspace["repo_info"].minor else f'{workspace["repo_info"].major}.0.0')
+        next_version = base_ref.next_patch() if base_ref else Version(f'{repo_info.major}.{repo_info.minor}.0' if repo_info.minor else f'{repo_info.major}.0.0')
         is_prerelease = base_ref and len(base_ref.prerelease) >= 2
         if is_prerelease:
             prerelease, prerelease_count = base_ref.prerelease
@@ -498,7 +500,7 @@ class PushRepoTask(Task):
         repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
 
         for name, repo in repos.items():
-            remote = Repository.from_template(repo, engine=get_engine(remote_name, autocommit=True))
+            remote = Repository.from_template(repo, engine=get_engine(remote_name))
             repo.push(
                 remote,
                 handler="S3",
