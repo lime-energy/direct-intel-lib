@@ -1,4 +1,9 @@
-
+import logging
+handler = logging.FileHandler(filename="splitgraph.log")
+handler.setFormatter(
+    logging.Formatter("%(asctime)s [%(process)d] %(levelname)s %(message)s")
+)
+logging.root.addHandler(handler)
 from dataclasses import dataclass
 from typing import Any, Dict, List, NamedTuple, Tuple, TypedDict, Union
 
@@ -352,9 +357,8 @@ class DataFrameToTableTask(Task):
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
 
-        table = params.table or table
-        if_exists = params.if_exists or if_exists
-
+        table = params['table'] if 'table' in params else table or table
+        if_exists = params['if_exists'] if 'if_exists' in params else if_exists or if_exists
 
         df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
 
