@@ -499,6 +499,8 @@ class PushRepoTask(Task):
             for tag in repo_tags:
                 repo.head.tag(tag)
 
+        # Push all repos. We don't know for sure that it shouldn't be pushed
+        for name, repo in repos.items():
             if not remote_name:
                 self.logger.warn(f'No remote_name specified. Not pushing {name}.')
                 continue

@@ -52,7 +52,8 @@ def semantic_operation(
     tagged_repo_uris = push(
         sgr_tags=repo_tags, 
         workspaces=workspaces,
-        remote_name=remote_name
+        remote_name=remote_name,
+        upstream_tasks=[committed_repo_uris],
     )
     cleanup=sematic_cleanup(
         retain=versions_to_retain, 
