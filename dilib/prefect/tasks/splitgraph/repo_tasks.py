@@ -509,7 +509,6 @@ class PushRepoTask(Task):
                 handler="S3",
                 overwrite_objects=True,
                 overwrite_tags=True,
-                reupload_objects=True,
             )
             self.logger.info(f'Pushed {name} to {remote_name}')
 
