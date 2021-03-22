@@ -54,11 +54,11 @@ class SplitfileTask(Task):
             - No return
         """
         repo_infos = dict((name, parse_repo(uri)) for (name, uri) in upstream_repos.items())
-        repo_uris = dict((name, repo_info.uri) for (name, repo_info) in repo_infos.items())
+        v1_sgr_repo_uris = dict((name, repo_info.v1_sgr_uri()) for (name, repo_info) in repo_infos.items())
  
 
         formatting_kwargs = {
-            **repo_uris,
+            **v1_sgr_repo_uris,
             **kwargs,
             **prefect.context.get("parameters", {}).copy(),
             **prefect.context,

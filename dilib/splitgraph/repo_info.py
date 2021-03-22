@@ -24,6 +24,9 @@ class RepoInfo:
     minor: str = None
     prerelease: str = None
 
+    def v1_sgr_uri(self) -> str:
+        return f'{namespace}/{repository}:{tag}'
+
 class Workspace(TypedDict, total=False):
     repo_uri: str
     image_hash: str
