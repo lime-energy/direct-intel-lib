@@ -4,9 +4,9 @@ subinclude("@pleasings//docker")
 
 
 python_binary(
-    name = "mssql_deps_bin",
+    name = "standard_deps_bin",
     main = "noop.py",
-    deps = [         
+    deps = [
         "//dilib/prefect:lib",
         "//third_party/python:standard_deps",
         ],
@@ -15,9 +15,11 @@ python_binary(
 docker_image(
     name = "docker_img",
     repo = "docker.pkg.github.com",
-    image = "prefect-mssql",
+    image = "prefect-dilib-standard",
     dockerfile = "Dockerfile",
     version = "latest",
-    srcs = [":mssql_deps_bin"],
+    srcs = [
+        ":standard_deps_bin",
+        "//dilib/docker/.splitgraph:sgconfig",
+    ],
 )
-

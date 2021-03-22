@@ -9,6 +9,7 @@ filegroup(
         ":splitgraph",
         ":pandas",
         ":pyodbc",
+        ":semantic_version"
       ]
 )
 
@@ -16,6 +17,11 @@ filegroup(
 pip_library(
   name = "pyodbc",
   version = "4.0.30",
+)
+
+pip_library(
+  name = "semantic_version",
+  version = "2.8.5",
 )
 
 
@@ -29,7 +35,7 @@ pip_library(
 pip_library(
   name = "prefect",
   package_name = "prefect[aws,sql_server]",
-  version = "0.14.9",
+  version = "0.14.12",
   deps = [
     ":toml",
     ":python-box",
@@ -282,7 +288,7 @@ pip_library(
 
 pip_library(
   name = "splitgraph",
-  version = "0.2.5",
+  version = "0.2.10",
   deps = [
     ":psycopg2-binary",
     ":tqdm",
