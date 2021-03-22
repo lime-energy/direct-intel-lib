@@ -16,7 +16,10 @@ spec:
           command:
           - /bin/sh
           - -c
-          - trap "rm /tmp/pod/main-executing" EXIT; while :; do echo 'waiting sgr'; sleep 3; if [ -f "/tmp/pod/sgr-executing" ]; then break; fi done; $0
+          - >-
+            trap "rm /tmp/pod/main-executing" EXIT;
+            while :; do echo 'waiting sgr'; sleep 3; if [ -f "/tmp/pod/sgr-executing" ]; then break; fi done;
+            $0 $@
           env:
           - name: SG_CONFIG_FILE
             value: /var/splitgraph/.sgconfig
