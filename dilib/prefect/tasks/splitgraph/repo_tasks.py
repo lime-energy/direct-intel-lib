@@ -286,8 +286,13 @@ class CommitTask(Task):
 
         
         for name, repo in repos_with_changes.items(): 
-            new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
-            self.logger.info(f'Commit complete: {name}')
+            try:
+                new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
+                self.logger.info(f'Commit complete: {name}')
+                repo.engine.commit()
+            finally:
+                repo.engine.close()
+
     
         committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
         return committed_repo_uris
