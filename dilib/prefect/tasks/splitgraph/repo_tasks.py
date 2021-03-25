@@ -298,29 +298,31 @@ class CommitTask(Task):
         Returns:
 
         """
+        self.logger.info(f'Commit task start')
         self.logger.info(f'Commit will eval: {workspaces}')
-        repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
-        repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
-        repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
+        self.logger.info(f'Commit task end')
+        # repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
+        # repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
+        # repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
 
-        for name, repo in repos_with_changes.items():
-            self.logger.info(f'Repo {name} has changes')
+        # for name, repo in repos_with_changes.items():
+        #     self.logger.info(f'Repo {name} has changes')
 
         
-        for name, repo in repos_with_changes.items(): 
-            try:
-                new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
-                self.logger.info(f'Commit complete: {name}')
-                repo.commit_engines()
-            except:
-                repo.rollback_engines()
-                raise
-            finally:
-                repo.engine.close()
+        # for name, repo in repos_with_changes.items(): 
+        #     try:
+        #         new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
+        #         self.logger.info(f'Commit complete: {name}')
+        #         repo.commit_engines()
+        #     except:
+        #         repo.rollback_engines()
+        #         raise
+        #     finally:
+        #         repo.engine.close()
 
-        self.logger.info(f'Commit now done')
-        committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
-        return committed_repo_uris
+        # self.logger.info(f'Commit now done')
+        # committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
+        # return committed_repo_uris
 
 
 @dataclass(frozen=True)

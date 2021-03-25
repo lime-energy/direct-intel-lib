@@ -60,7 +60,17 @@ class SplitgraphFetch(Task):
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
   
-        data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)
+        try:
+            data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)
+            repo.commit_engines()
+        except:
+            repo.rollback_engines()
+            raise
+        finally:
+            repo.engine.close()
+
+
+        
 
         if self.schema is not None:
             errors = self.schema.validate(data)
