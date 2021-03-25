@@ -508,7 +508,7 @@ class PushRepoTask(Task):
             repo.push(
                 remote,
                 handler="S3",
-                handler_params={"threads": 8},
+                handler_options={"threads": 8},
                 overwrite_objects=True,
                 overwrite_tags=True,
             )
