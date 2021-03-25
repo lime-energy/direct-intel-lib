@@ -79,6 +79,7 @@ class SemanticCheckoutTask(Task):
             return workspaces
         except:
             engine.rollback()
+            raise
         finally:
             engine.close()
  
@@ -104,6 +105,7 @@ class SemanticCheckoutTask(Task):
                 remote.commit_engines()
             except:
                 remote.rollback_engines()
+                raise
             finally:
                 remote.engine.close()
         return repo
@@ -207,6 +209,7 @@ class SemanticCleanupTask(Task):
                 repo.commit_engines()
             except:
                 repo.rollback_engines()
+                raise
             finally:
                 repo.engine.close()
 
@@ -312,6 +315,7 @@ class CommitTask(Task):
                 repo.commit_engines()
             except:
                 repo.rollback_engines()
+                raise
             finally:
                 repo.engine.close()
 
@@ -382,6 +386,7 @@ class DataFrameToTableTask(Task):
             repo.commit_engines()
         except:
             repo.rollback_engines()
+            raise
         finally:
             repo.engine.close()
 
