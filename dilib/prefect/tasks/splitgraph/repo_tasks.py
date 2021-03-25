@@ -499,9 +499,11 @@ class PushRepoTask(Task):
                 continue
 
             remote = Repository.from_template(repo, engine=get_engine(remote_name))
+        
             repo.push(
                 remote,
                 handler="S3",
+                handler_params={"threads": 8},
                 overwrite_objects=True,
                 overwrite_tags=True,
             )
