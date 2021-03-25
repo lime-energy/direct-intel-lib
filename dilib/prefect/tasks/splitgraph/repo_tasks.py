@@ -76,14 +76,13 @@ class SemanticCheckoutTask(Task):
             workspaces = dict((name, self.checkout_workspace(repo, repo_infos[name])) for (name, repo) in repos.items())
 
             engine.commit()
-            return workspaces
         except:
             engine.rollback()
             raise
         finally:
             engine.close()
  
-
+        return workspaces
     
     def init_repo(self, repo_info: RepoInfo) -> Repository:
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
