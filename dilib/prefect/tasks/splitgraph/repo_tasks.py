@@ -99,7 +99,7 @@ class SemanticCheckoutTask(Task):
         image_tags = repo.get_all_hashes_tags()
 
         tag_dict = dict((tag, image_hash) for (image_hash, tag) in image_tags if image_hash) #reverse keys
-        default_image = repo.images[tag_dict['latest']] if 'lastest' in tag_dict else repo.head
+        default_image = repo.images[tag_dict['latest']] if 'latest' in tag_dict else repo.head
         version_list = [parse_tag(tag) for tag in sorted(list(tag_dict.keys()), key=len, reverse=True)]
 
         valid_versions = [version for version in version_list if version]
