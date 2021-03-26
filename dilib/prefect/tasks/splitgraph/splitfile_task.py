@@ -1,8 +1,8 @@
 from typing import Any, Dict
 
 import prefect
-from dilib.splitgraph import (RepoInfo, SchemaValidationError,
-                              Workspace, parse_repo)
+from dilib.splitgraph import (RepoInfo, SchemaValidationError, Workspace,
+                              parse_repo, splitgraph_transaction)
 from prefect import Task
 from prefect.utilities.collections import DotDict
 from prefect.utilities.tasks import defaults_from_attrs
@@ -44,6 +44,7 @@ class SplitfileTask(Task):
 
         super().__init__(**kwargs)
 
+    @splitgraph_transaction()
     @defaults_from_attrs('upstream_repos', 'splitfile_commands', 'output',)
     def run(self, upstream_repos: Dict[str, str] = None, splitfile_commands: str = None, output: Workspace = None, **kwargs: Any):
         """
@@ -68,17 +69,11 @@ class SplitfileTask(Task):
         repo_info = parse_repo(output['repo_uri'])
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
      
-        try:
-            execute_commands(
-                splitfile_commands, 
-                params=formatting_kwargs, 
-                output=repo, 
-                # output_base=output['image_hash'],
-            )
-            repo.commit_engines()
-        except:
-            repo.rollback_engines()
-            raise
-        finally:
-            repo.engine.close()
+        execute_commands(
+            splitfile_commands, 
+            params=formatting_kwargs, 
+            output=repo, 
+            # output_base=output['image_hash'],
+        )
+
  

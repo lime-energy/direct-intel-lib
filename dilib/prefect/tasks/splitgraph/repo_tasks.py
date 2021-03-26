@@ -6,7 +6,7 @@ import pendulum
 import prefect
 from dilib.format import format_with_default
 from dilib.splitgraph import (RepoInfo, SchemaValidationError, Workspace,
-                              parse_repo, parse_tag)
+                              parse_repo, parse_tag, splitgraph_transaction)
 from prefect import Task
 from prefect.tasks.templates.strings import StringFormatter
 from prefect.utilities.collections import DotDict
@@ -59,6 +59,7 @@ class SemanticCheckoutTask(Task):
         super().__init__(**kwargs)
 
 
+    @splitgraph_transaction()
     @defaults_from_attrs('upstream_repos')
     def run(self, upstream_repos: Dict[str, str] = None, **kwargs: Any) -> Dict[str, Workspace]:
         """
@@ -69,19 +70,10 @@ class SemanticCheckoutTask(Task):
             - 
         """
         repo_infos = dict((name, parse_repo(uri)) for (name, uri) in upstream_repos.items())
-        
-        engine = get_engine()
-        try:
-            repos = dict((name, self.init_repo(repo_info)) for (name, repo_info) in repo_infos.items())      
-            workspaces = dict((name, self.checkout_workspace(repo, repo_infos[name])) for (name, repo) in repos.items())
 
-            engine.commit()
-        except:
-            engine.rollback()
-            raise
-        finally:
-            engine.close()
- 
+        repos = dict((name, self.init_repo(repo_info)) for (name, repo_info) in repo_infos.items())      
+        workspaces = dict((name, self.checkout_workspace(repo, repo_infos[name])) for (name, repo) in repos.items())
+
         return workspaces
     
     def init_repo(self, repo_info: RepoInfo) -> Repository:
@@ -93,20 +85,14 @@ class SemanticCheckoutTask(Task):
 
         if repo_info.remote_name:
             remote = Repository.from_template(repo, engine=get_engine(repo_info.remote_name))
-            try:
-                cloned_repo=clone(
-                    remote,
-                    local_repository=repo,
-                    download_all=False,
-                    overwrite_objects=True,
-                    overwrite_tags=True,
-                )
-                remote.commit_engines()
-            except:
-                remote.rollback_engines()
-                raise
-            finally:
-                remote.engine.close()
+            cloned_repo=clone(
+                remote,
+                local_repository=repo,
+                download_all=False,
+                overwrite_objects=True,
+                overwrite_tags=True,
+            )
+
         return repo
 
     def checkout_workspace(self, repo: Repository, repo_info: RepoInfo) -> Workspace:
@@ -164,6 +150,7 @@ class SemanticCleanupTask(Task):
         super().__init__(**kwargs)
 
 
+    @splitgraph_transaction()
     @defaults_from_attrs('repo_uris', 'retain')
     def run(self, repo_uris: Dict[str, str] = None, retain: int = None, **kwargs: Any) -> Union[Version, None]:
         """
@@ -182,35 +169,28 @@ class SemanticCleanupTask(Task):
 
         for name, repo_info in repo_infos.items():
             repo = repos_to_prune[name]
-            try:
-                prerelease = repo_info.prerelease
-                image_tags = repo.get_all_hashes_tags()
+            prerelease = repo_info.prerelease
+            image_tags = repo.get_all_hashes_tags()
 
-                tag_dict = dict((tag, image_hash) for (image_hash, tag) in image_tags if image_hash) #reverse keys
+            tag_dict = dict((tag, image_hash) for (image_hash, tag) in image_tags if image_hash) #reverse keys
 
-                version_list = [parse_tag(tag) for tag in sorted(list(tag_dict.keys()), key=len, reverse=True)]
+            version_list = [parse_tag(tag) for tag in sorted(list(tag_dict.keys()), key=len, reverse=True)]
 
-                valid_versions = [version for version in version_list if version]
-                non_prerelease_versions = [version for version in valid_versions if len(version.prerelease) == 0]
-                prerelease_versions = [version for version in valid_versions if prerelease and len(version.prerelease) > 0 and version.prerelease[0] == prerelease]
-                prune_candidates = prerelease_versions if prerelease else non_prerelease_versions
+            valid_versions = [version for version in version_list if version]
+            non_prerelease_versions = [version for version in valid_versions if len(version.prerelease) == 0]
+            prerelease_versions = [version for version in valid_versions if prerelease and len(version.prerelease) > 0 and version.prerelease[0] == prerelease]
+            prune_candidates = prerelease_versions if prerelease else non_prerelease_versions
 
-                total_candidates = len(prune_candidates)
-                prune_count = total_candidates - retain
-                prune_list = sorted(prune_candidates)[:prune_count]
+            total_candidates = len(prune_candidates)
+            prune_count = total_candidates - retain
+            prune_list = sorted(prune_candidates)[:prune_count]
 
-                for version in prune_list:
-                    tag = str(version)
-                    image_hash = tag_dict[tag]
-                    image = repo.images[image_hash]
-                    image.delete_tag(tag)
-                
-                repo.commit_engines()
-            except:
-                repo.rollback_engines()
-                raise
-            finally:
-                repo.engine.close()
+            for version in prune_list:
+                tag = str(version)
+                image_hash = tag_dict[tag]
+                image = repo.images[image_hash]
+                image.delete_tag(tag)
+            
 
 
 class VersionToDateTask(Task):
@@ -289,6 +269,7 @@ class CommitTask(Task):
         super().__init__(**kwargs)
 
 
+    @splitgraph_transaction()
     @defaults_from_attrs('workspaces')
     def run(self, workspaces: Dict[str, Workspace] = None, comment: str = None, **kwargs: Any):
         """
@@ -303,27 +284,21 @@ class CommitTask(Task):
 
         engine = get_engine()
         repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
-        try:
-            repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
-            repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
+        repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
+        repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
 
-            for name, repo in repos_with_changes.items():
-                self.logger.info(f'Repo {name} has changes')
+        for name, repo in repos_with_changes.items():
+            self.logger.info(f'Repo {name} has changes')
 
-            
-            for name, repo in repos_with_changes.items(): 
-                new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
-                self.logger.info(f'Commit complete: {name}')
-            
-            self.logger.info(f'Commit now done')
-            committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
-            engine.commit()
-            return committed_repo_uris
-        except:
-            engine.rollback()
-            raise
-        finally:
-            engine.close()
+        
+        for name, repo in repos_with_changes.items(): 
+            new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
+            self.logger.info(f'Commit complete: {name}')
+        
+        self.logger.info(f'Commit now done')
+        committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
+
+        return committed_repo_uris
 
 
 
@@ -368,6 +343,7 @@ class DataFrameToTableTask(Task):
         super().__init__(**kwargs)
 
 
+    @splitgraph_transaction()
     @defaults_from_attrs('table', 'if_exists', 'repo_uri')
     def run(self, params: DataFrameToTableParams, table: str = None, if_exists: str = None, repo_uri: str = None, **kwargs: Any):
         """
@@ -385,14 +361,7 @@ class DataFrameToTableTask(Task):
         table = params.table or table
         if_exists = params.if_exists or if_exists
 
-        try:
-            df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
-            repo.commit_engines()
-        except:
-            repo.rollback_engines()
-            raise
-        finally:
-            repo.engine.close()
+        df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
 
 
 class SemanticBumpTask(Task):
@@ -513,6 +482,7 @@ class PushRepoTask(Task):
         super().__init__(**kwargs)
 
 
+    @splitgraph_transaction()
     @defaults_from_attrs('workspaces', 'sgr_tags')
     def run(self, workspaces: Dict[str, Workspace] = None, sgr_tags: Dict[str, List[str]] = None, **kwargs: Any):
         """

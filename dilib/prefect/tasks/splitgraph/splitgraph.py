@@ -1,7 +1,8 @@
 from typing import Any, Dict
 
 import prefect
-from dilib.splitgraph import SchemaValidationError, RepoInfo, parse_repo
+from dilib.splitgraph import (RepoInfo, SchemaValidationError, parse_repo,
+                              splitgraph_transaction)
 from pandas_schema import Schema
 from prefect import Task
 from prefect.utilities.collections import DotDict
@@ -46,6 +47,7 @@ class SplitgraphFetch(Task):
         
         super().__init__(**kwargs)
 
+    @splitgraph_transaction()
     @defaults_from_attrs('repo_uri', 'query')
     def run(self, repo_uri: str = None, query: str = None, **kwargs: Any):
         """  
@@ -59,18 +61,7 @@ class SplitgraphFetch(Task):
         repo_info = parse_repo(repo_uri)
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
-  
-        try:
-            data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)
-            repo.commit_engines()
-        except:
-            repo.rollback_engines()
-            raise
-        finally:
-            repo.engine.close()
-
-
-        
+        data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)        
 
         if self.schema is not None:
             errors = self.schema.validate(data)
