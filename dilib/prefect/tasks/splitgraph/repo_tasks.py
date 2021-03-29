@@ -15,6 +15,7 @@ from semantic_version import NpmSpec, Version
 
 from splitgraph.core.engine import get_engine, repository_exists
 from splitgraph.core.repository import Repository, clone
+from splitgraph.core.image import Image
 from splitgraph.ingestion.pandas import df_to_table
 
 version_formatter = StringFormatter(name='semantic version formatter', template='{major}.{minor}.{patch}')
@@ -268,6 +269,8 @@ class CommitTask(Task):
         self.chunk_size = chunk_size
         super().__init__(**kwargs)
 
+    def image_contents_equal(old_image: Image, new_image: Image) -> bool:
+        return old_image.get_table(table).objects == new_image.get_table(table).objects
 
     @splitgraph_transaction()
     @defaults_from_attrs('workspaces')
@@ -285,15 +288,18 @@ class CommitTask(Task):
         engine = get_engine()
         repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
         repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
-        repos_with_changes = dict((name, repo) for (name, repo) in repos.items() if repo.has_pending_changes())
 
-        for name, repo in repos_with_changes.items():
-            self.logger.info(f'Repo {name} has changes')
+        repos_with_changes = dict()
+        for name, repo in repos.items(): 
+            old_image_hash = workspaces[name].image_hash
+            new_image = repo.commit(comment=comment, chunk_size=self.chunk_size)
 
-        
-        for name, repo in repos_with_changes.items(): 
-            new_img = repo.commit(comment=comment, chunk_size=self.chunk_size)
-            self.logger.info(f'Commit complete: {name}')
+            unchanged = image_contents_equal(repo.images[old_image_hash], new_image)
+            if unchanged:
+                repo.images.delete([new_image.image_hash])
+            else:
+                repos_with_changes[name] = repo
+                self.logger.info(f'Commit complete: {name}')
         
         self.logger.info(f'Commit now done')
         committed_repo_uris = dict((name, workspaces[name]['repo_uri']) for (name, repo) in repos_with_changes.items())
