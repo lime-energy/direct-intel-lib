@@ -291,7 +291,7 @@ class CommitTask(Task):
 
         repos_with_changes = dict()
         for name, repo in repos.items(): 
-            old_image_hash = workspaces[name].image_hash
+            old_image_hash = workspaces[name]['image_hash']
             new_image = repo.commit(comment=comment, chunk_size=self.chunk_size)
 
             unchanged = image_contents_equal(repo.images[old_image_hash], new_image)
