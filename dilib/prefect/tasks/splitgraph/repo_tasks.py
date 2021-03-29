@@ -269,8 +269,17 @@ class CommitTask(Task):
         self.chunk_size = chunk_size
         super().__init__(**kwargs)
 
-    def image_contents_equal(old_image: Image, new_image: Image) -> bool:
-        return old_image.get_table(table).objects == new_image.get_table(table).objects
+    def image_contents_equal(self, old_image: Image, new_image: Image) -> bool:
+        new_tables = new_image.get_tables()
+        old_tables = old_image.get_tables()
+        if set(new_tables) != set(old_tables):
+            return False
+
+        if any(old_image.get_table(table).objects != new_image.get_table(table).objects for table in new_tables): 
+            return False
+        
+        return True
+        
 
     @splitgraph_transaction()
     @defaults_from_attrs('workspaces')
@@ -294,7 +303,7 @@ class CommitTask(Task):
             old_image_hash = workspaces[name]['image_hash']
             new_image = repo.commit(comment=comment, chunk_size=self.chunk_size)
 
-            unchanged = image_contents_equal(repo.images[old_image_hash], new_image)
+            unchanged = self.image_contents_equal(repo.images[old_image_hash], new_image)
             if unchanged:
                 repo.images.delete([new_image.image_hash])
             else:
@@ -501,7 +510,7 @@ class PushRepoTask(Task):
   
         repo_infos = dict((name, parse_repo(workspace['repo_uri'])) for (name, workspace) in workspaces.items())
         repos = dict((name, Repository(namespace=repo_info.namespace, repository=repo_info.repository)) for (name, repo_info) in repo_infos.items())
-        repos_with_new_images = dict((name, repo) for (name, repo) in repos.items() if repo.head.image_hash != workspaces[name]['image_hash'])
+        repos_with_new_images = dict((name, repo) for (name, repo) in repos.items() if repo.head and repo.head.image_hash != workspaces[name]['image_hash'])
 
         for name, repo in repos_with_new_images.items():
             repo_tags = sgr_tags[name] if sgr_tags and name in sgr_tags else []

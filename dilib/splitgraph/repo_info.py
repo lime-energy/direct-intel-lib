@@ -25,7 +25,7 @@ class RepoInfo:
     prerelease: str = None
 
     def v1_sgr_uri(self) -> str:
-        return f'{namespace}/{repository}:{tag}'
+        return f'{self.namespace}/{self.repository}:{self.tag}'
 
 class Workspace(TypedDict, total=False):
     repo_uri: str
