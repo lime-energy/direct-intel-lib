@@ -91,11 +91,11 @@ class CurrentContext(object):
             labels=labels,
         )
 
-        return dict(
+        flow_config = dict(
             run_config=run_config,
             storage=storage,
-        ),
-        dict(
+        )
+        reg_config = dict(
             project_name = self.dilib_context.project_name,
             build = False,
             labels = [
@@ -103,7 +103,8 @@ class CurrentContext(object):
                 f"prefect:{self.dilib_context.prefect_env}",
             ]
         )
- 
+        return flow_config, reg_config
+
 
     @property
     def dilib_context(self):
