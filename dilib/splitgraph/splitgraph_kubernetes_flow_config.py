@@ -1,6 +1,6 @@
 import os
 import pkgutil
-from typing import TypedDict, Tuple, NamedTuple
+from typing import TypedDict, Tuple, NamedTuple, List, Union, Iterable
 
 import yaml
 from prefect.run_configs import KubernetesRun, RunConfig
