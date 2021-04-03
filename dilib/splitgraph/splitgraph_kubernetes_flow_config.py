@@ -1,6 +1,6 @@
 import os
 import pkgutil
-from typing import TypedDict
+from typing import TypedDict, Tuple
 
 import yaml
 from prefect.run_configs import KubernetesRun, RunConfig
@@ -12,6 +12,7 @@ DEFAULT_PREFECT_ENV = 'production'
 DEFAULT_REMOTE = 'bedrock'
 
 class DilibContext(NamedTuple):
+    prefect_env: str
     default_remote_name: str
     env_namespace_prefix: str
     project_name: str
@@ -19,6 +20,14 @@ class DilibContext(NamedTuple):
 class SplitgraphKubernetesFlowConfig(TypedDict, total=False):
     run_config: RunConfig
     storage: Storage
+class SplitgraphKubernetesFlowReg(TypedDict, total=False):
+    project_name: str
+    build: bool
+    labels: List[str] = None
+    set_schedule_active: bool = True
+    version_group_id: str = None
+    no_url: bool = False
+    idempotency_key: str = None
 class CurrentContext(object):
     def __init__(self):
         prefect_env = os.environ.get('PREFECT_ENV') or DEFAULT_PREFECT_ENV
@@ -34,7 +43,7 @@ class CurrentContext(object):
             'SG_CONFIG_FILE': '/var/splitgraph/.sgconfig',
         }
 
-        self._dilib_context = DilibContext(default_remote_name, env_namespace_prefix, project_name, default_env)
+        self._dilib_context = DilibContext(prefect_env, default_remote_name, env_namespace_prefix, project_name, default_env)
 
     def build_standard_config(
         self,
@@ -48,7 +57,7 @@ class CurrentContext(object):
         service_account_name: str = None,
         image_pull_secrets: Iterable[str] = None,
         labels: Iterable[str] = None,
-    ) -> SplitgraphKubernetesFlowConfig:    
+    ) -> Tuple[SplitgraphKubernetesFlowConfig, SplitgraphKubernetesFlowReg]:    
 
         image_name_base = os.environ.get('IMAGE_NAME_BASE')
         registry = os.environ.get('REGISTRY')
@@ -85,6 +94,14 @@ class CurrentContext(object):
         return dict(
             run_config=run_config,
             storage=storage,
+        ),
+        dict(
+            project_name = self.dilib_context.project_name,
+            build = False,
+            labels = [
+                "k8s",
+                f"prefect:{self.dilib_context.prefect_env}",
+            ]
         )
  
 
