@@ -48,8 +48,8 @@ class SplitgraphFetch(Task):
         super().__init__(**kwargs)
 
     @splitgraph_transaction()
-    @defaults_from_attrs('repo_uri', 'query')
-    def run(self, repo_uri: str = None, query: str = None, **kwargs: Any):
+    @defaults_from_attrs('repo_uri', 'query', 'schema', 'layer_query')
+    def run(self, repo_uri: str = None, query: str = None, schema: Schema = None, layer_query: bool = None, **kwargs: Any):
         """  
 
         Args:
@@ -61,10 +61,10 @@ class SplitgraphFetch(Task):
         repo_info = parse_repo(repo_uri)
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
-        data = sql_to_df(self.query, repository=repo, use_lq=self.layer_query)        
+        data = sql_to_df(query, repository=repo, use_lq=layer_query)        
 
-        if self.schema is not None:
-            errors = self.schema.validate(data)
+        if schema is not None:
+            errors = schema.validate(data)
             if errors:
                 raise SchemaValidationError(errors)
         
