@@ -318,11 +318,7 @@ class CommitTask(Task):
 
 
 
-@dataclass(frozen=True)
-class DataFrameToTableParams:
-    data_frame: pd.DataFrame
-    table: str = None
-    if_exists: str = None
+
 class DataFrameToTableTask(Task):
     """
     Use pandas dataframe to import data to table.
@@ -360,7 +356,7 @@ class DataFrameToTableTask(Task):
 
     @splitgraph_transaction()
     @defaults_from_attrs('table', 'if_exists', 'repo_uri')
-    def run(self, params: DataFrameToTableParams, table: str = None, if_exists: str = None, repo_uri: str = None, **kwargs: Any):
+    def run(self, data_frame: pd.DataFrame, table: str = None, if_exists: str = None, repo_uri: str = None, **kwargs: Any):
         """
 
         Args:
@@ -373,12 +369,60 @@ class DataFrameToTableTask(Task):
 
         repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
 
-        table = params.table or table
-        if_exists = params.if_exists or if_exists
+        df_to_table(data_frame, repository=repo, table=table, if_exists=if_exists)
 
-        df_to_table(params.data_frame, repository=repo, table=table, if_exists=if_exists)
+@dataclass(frozen=True)
+class DataFrameToTableRequest:
+    data_frame: pd.DataFrame
+    table: str = None
+    if_exists: str = None
+class DataFrameToTableRequestTask(Task):
+    """
+    Use pandas dataframe to import data to table.
+
+    Args:
+
+    Raises:
 
 
+    Examples:
+
+     ```python
+    >>> DataFrameToTableRequestTask('org1/interesting_data:1')
+    None
+
+    ```
+
+    """
+
+
+    def __init__(
+      self,
+      repo_uri: str = None,
+      schema_check: bool = False,
+      **kwargs
+    ) -> None:
+        self.repo_uri = repo_uri
+        self.schema_check = schema_check
+        super().__init__(**kwargs)
+
+
+    @splitgraph_transaction()
+    @defaults_from_attrs('repo_uri')
+    def run(self, request: DataFrameToTableRequest, repo_uri: str = None, **kwargs: Any):
+        """
+
+        Args:
+
+        Returns:
+
+        """
+        assert repo_uri, 'Must specify repo_uri.'
+        repo_info = parse_repo(repo_uri)
+
+        repo = Repository(namespace=repo_info.namespace, repository=repo_info.repository)
+
+        df_to_table(request.data_frame, repository=repo, table=request.table, if_exists=request.if_exists, schema_check=self.schema_check)
 class SemanticBumpTask(Task):
     """
     Given a semantic version, bumps the version using defined `semantic data` protocol.
