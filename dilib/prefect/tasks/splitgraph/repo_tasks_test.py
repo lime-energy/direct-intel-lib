@@ -8,8 +8,8 @@ import numpy as np
 import pandas as pd
 import pendulum
 import prefect
-from dilib.prefect.tasks.splitgraph import (CommitTask, DataFrameToTableParams,
-                                            DataFrameToTableTask, PushRepoTask,
+from dilib.prefect.tasks.splitgraph import (CommitTask, DataFrameToTableRequest,
+                                            DataFrameToTableRequestTask, PushRepoTask,
                                             SemanticBumpTask,
                                             SemanticCheckoutTask,
                                             SemanticCleanupTask,
@@ -52,8 +52,8 @@ def build_repo():
 def say_something(msg: str):
     print(msg)
 @task
-def fake_extract(periods: int) -> DataFrameToTableParams:
-    return DataFrameToTableParams(
+def fake_extract(periods: int) -> DataFrameToTableRequest:
+    return DataFrameToTableRequest(
         data_frame=fake_data(periods),
         table=f'periodic_data_{periods}',
         if_exists='replace'
@@ -61,7 +61,7 @@ def fake_extract(periods: int) -> DataFrameToTableParams:
 
 remote_name='bedrock'
 
-df_to_table_task = DataFrameToTableTask()
+df_to_table_task = DataFrameToTableRequestTask()
 
 
 with Flow('sample') as flow:
@@ -80,11 +80,11 @@ with Flow('sample') as flow:
         foo1=workspaces['unittest']
         foo2=workspaces['foo']
         load_done = df_to_table_task.map(
-            params=extract_results,
+            request=extract_results,
             repo_uri=unmapped(foo1['repo_uri'])
         )
         load_done2 = df_to_table_task.map(
-            params=extract_results,
+            request=extract_results,
             repo_uri=unmapped(foo2['repo_uri'])
         )
         say_something('after_load', upstream_tasks=[load_done, load_done2])
@@ -315,13 +315,13 @@ class RepoTasksTest(unittest.TestCase):
             ),
         )
         workspaces = checkout.run()
-        df_to_table = DataFrameToTableTask(
+        df_to_table = DataFrameToTableRequestTask(
             repo_uri='sgr:///abc/1234?tag=1',
         )
 
         runner = TaskRunner(task=df_to_table)
-        df_edge = Edge(Task(), df_to_table, key='params')
-        upstream_state = Success(result=ConstantResult(value=DataFrameToTableParams(data_frame=fake_data(10), table='footable1')))
+        df_edge = Edge(Task(), df_to_table, key='request')
+        upstream_state = Success(result=ConstantResult(value=DataFrameToTableRequest(data_frame=fake_data(10), table='footable1')))
 
         with raise_on_exception():
             with prefect.context():
