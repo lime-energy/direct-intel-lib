@@ -9,7 +9,8 @@ filegroup(
         ":splitgraph",
         ":pandas",
         ":pyodbc",
-        ":semantic_version"
+        ":semantic_version",
+        ":python-json-logger"
       ]
 )
 
@@ -22,6 +23,11 @@ pip_library(
 pip_library(
   name = "semantic_version",
   version = "2.8.5",
+)
+
+pip_library(
+  name = "python-json-logger",
+  version = "2.0.1",
 )
 
 
