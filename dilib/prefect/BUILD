@@ -7,6 +7,7 @@ python_library(
         # "//third_party/python:standard_deps",
         "//dilib/splitgraph:lib",
         "//dilib/format:lib",
+        "//dilib/core:lib",
         ],
 )
 
