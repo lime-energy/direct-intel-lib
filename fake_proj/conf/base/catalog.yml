@@ -1,0 +1,3 @@
+example_iris_data:
+  type: ${data_set_type}
+  filepath: data/01_raw/iris.csv
