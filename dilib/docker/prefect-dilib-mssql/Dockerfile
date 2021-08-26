@@ -5,6 +5,9 @@ RUN apt-get update \
     && apt-get install -y apt-transport-https ca-certificates curl gnupg2 lsb-release git unzip \
     && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | apt-key add - 2>/dev/null \
     && curl https://packages.microsoft.com/config/debian/10/prod.list > /etc/apt/sources.list.d/mssql-release.list \
+    # Install multiarch support
+    && curl http://archive.ubuntu.com/ubuntu/pool/main/g/glibc/multiarch-support_2.27-3ubuntu1.4_amd64.deb -o /tmp/multiarch-support.deb\
+    && apt-get install /tmp/multiarch-support.deb \
     && apt-get update \
     # Install odbc drivers
     && apt-get install -y g++ unixodbc-dev \
