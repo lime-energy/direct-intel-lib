@@ -82,7 +82,7 @@ class AWSSecret(SecretBase):
         """
 
         try:
-            client = boto3.client('secretsmanager')
+            client = boto3.Session().client('secretsmanager')
             resp = client.get_secret_value(SecretId=secret_name)
             secret = json.loads(resp['SecretString'])
 
