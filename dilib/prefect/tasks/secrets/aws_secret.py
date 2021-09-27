@@ -1,11 +1,12 @@
-import boto3
 import json
 
 from prefect.utilities.tasks import defaults_from_attrs
 from prefect.tasks.secrets import SecretBase
 
-from typing import Any, Optional
+from typing import Any, Optional, TYPE_CHECKING
 
+if TYPE_CHECKING:
+    import boto3
 
 class AWSSecret(SecretBase):
     """
@@ -37,6 +38,14 @@ class AWSSecret(SecretBase):
         self.template = template
         self.default = default
         super().__init__(name=secret_name, **kwargs)
+
+    @property
+    def client(self) -> "boto3.client":
+        if getattr(self, "_client", None) is None:
+            from prefect.utilities.aws import get_boto_client
+
+            self._client = get_boto_client("secretsmanager")
+        return self._client
 
     @defaults_from_attrs('secret_name', 'key', 'template', 'default')
     def run(self, secret_name: str = None, key: str = None, template: str = None, default:Optional[Any]=None):
@@ -82,8 +91,7 @@ class AWSSecret(SecretBase):
         """
 
         try:
-            client = boto3.Session().client('secretsmanager')
-            resp = client.get_secret_value(SecretId=secret_name)
+            resp = self.client.get_secret_value(SecretId=secret_name)
             secret = json.loads(resp['SecretString'])
 
             if template:
